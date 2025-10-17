@@ -18,4 +18,8 @@ Hit <prefix> + I to fetch the plugin and source it.
 
 ## Usage
 
-This is set to the key binding of `C-g` which will trigger a `display-popup` and ask for the worktree name and then the branch.
+Add the following with your own keybinding to trigger the script in a popup:
+
+```tmux
+bind-key C-g display-popup -E -w 80% -h 60% -d "#{pane_current_path}" "<YOUR_PATH_TO_YOUR_TMUX_CONFIG>/plugins/tmux-git-worktree/src/main"
+```
