@@ -2,4 +2,4 @@
 
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-source "$CURRENT_DIR/src/main"
+bind-key C-g display-popup -E -w 80% -h 60% -d "#{pane_current_path}" "$CURRENT_DIR/src/main"
