@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+
+# Existing worktree behavior:
+# 1 = Pre-fill fzf query with existing branch (allows changing)
+# 2 = Auto-select existing branch (skip branch selection)
+EXISTING_WORKTREE_MODE=1
+
+if [[ -z "$TMUX" ]]; then
+  echo "Error: Not running inside tmux"
+  read -n 1 -s -r -p "Press any key to close..."
+  exit 1
+fi
+
+if ! git rev-parse --git-dir &>/dev/null; then
+  echo "Error: Not a git repository"
+  read -n 1 -s -r -p "Press any key to close..."
+  exit 1
+fi
+
+directory=$(git worktree list | awk '{print $1}' | xargs -n1 basename | fzf --print-query --prompt="Select or create worktree: " | tail -1)
+
+# Exit if user cancelled (Ctrl+C or Esc)
+[[ -z "$directory" ]] && exit 0
+
+existing_worktree=$(git worktree list | awk -v dir="$directory" '$1 ~ "/"dir"$" {print; exit}')
+
+if [[ -n "$existing_worktree" ]]; then
+  # Extract branch from existing worktree
+  existing_branch=$(echo "$existing_worktree" | sed 's/.*\[\(.*\)\]/\1/')
+
+  if [[ "$EXISTING_WORKTREE_MODE" -eq 1 ]]; then
+    # Mode 1: Pre-fill fzf query with existing branch
+    if command -v fzf &> /dev/null; then
+      branch=$(git branch -a | sed 's/^[* ] //' | sed 's/remotes\///' | \
+        fzf --query="$existing_branch" --print-query --prompt="Select or type branch: " | tail -1)
+
+      [[ -z "$branch" ]] && exit 0
+      branch=$(echo "$branch" | sed 's/^[^\/]*\///')
+    else
+      read -p "Enter branch name [$existing_branch]: " branch
+      branch=${branch:-$existing_branch}
+    fi
+  else
+    # Mode 2: Auto-select existing branch
+    branch="$existing_branch"
+  fi
+else
+  if command -v fzf &> /dev/null; then
+    # Use fzf to select a branch, or create a new one
+    branch=$(git branch -a | sed 's/^[* ] //' | sed 's/remotes\///' | fzf --print-query --prompt="Select or type branch: " | tail -1)
+
+    [[ -z "$branch" ]] && exit 0
+    # Strip the remote prefix (e.g., origin/, upstream/)
+    branch=$(echo "$branch" | sed 's/^[^\/]*\///')
+  else
+    read -p "Enter branch name: " branch
+  fi
+fi
+
+if [[ -z "$branch" ]]; then
+  echo "Error: Branch name cannot be empty"
+  read -n 1 -s -r -p "Press any key to close..."
+  exit 1
+fi
+
+# Default directory to sanitized branch name if not provided
+if [[ -z "$directory" ]]; then
+  directory=$(echo "$branch" | sed 's/\//-/g')
+fi
+
+is_root_of_repo=0
+
+if git rev-parse --is-bare-repository 2> /dev/null | grep -q "true"; then
+  is_root_of_repo=1
+fi
+
+if [[ "$is_root_of_repo" -eq 0 ]]; then
+  directory="../$directory"
+fi
+
+if [[ -d "$directory" ]]; then
+  abs_directory=$(cd "$directory" && pwd)
+  if ! tmux new-window -c "$abs_directory" -n "$directory"; then
+    echo "Error: Failed to create tmux window"
+    read -n 1 -s -r -p "Press any key to close..."
+    exit 1
+  fi
+  exit 0
+fi
+
+if git rev-parse --quiet --verify "$branch" 2> /dev/null; then
+  if ! git worktree add "$directory" "$branch"; then
+    echo "Error: Failed to create worktree"
+    read -n 1 -s -r -p "Press any key to close..."
+    exit 1
+  fi
+else
+  if ! git worktree add "$directory" -b "$branch"; then
+    echo "Error: Failed to create worktree with new branch"
+    read -n 1 -s -r -p "Press any key to close..."
+    exit 1
+  fi
+fi
+
+abs_directory=$(cd "$directory" && pwd)
+if ! tmux new-window -c "$abs_directory" -n "$directory"; then
+  echo "Error: Failed to create tmux window"
+  read -n 1 -s -r -p "Press any key to close..."
+  exit 1
+fi
