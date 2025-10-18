@@ -18,6 +18,8 @@ if ! git rev-parse --git-dir &>/dev/null; then
 fi
 
 directory=$(git worktree list | awk '{print $1}' | xargs -n1 basename | fzf --print-query --prompt="Select or create worktree: " | tail -1)
+# Remove trailing spaces and replace all spaces with a '-' to enable quicker directory naming
+directory=$(echo $directory | sed 's/[[:space:]]*$//' | tr ' ' '-')
 
 # Exit if user cancelled (Ctrl+C or Esc)
 [[ -z "$directory" ]] && exit 0
@@ -50,8 +52,9 @@ else
     branch=$(git branch -a | sed 's/^[* ] //' | sed 's/remotes\///' | fzf --print-query --prompt="Select or type branch: " | tail -1)
 
     [[ -z "$branch" ]] && exit 0
-    # Strip the remote prefix (e.g., origin/, upstream/)
-    branch=$(echo "$branch" | sed 's/^[^\/]*\///')
+    # Strip the remote prefix (e.g., origin/, upstream/) and replace all spaces
+    # with hyphens
+    branch=$(echo "$branch" | sed 's/^[^\/]*\///' | sed 's/[[:space:]]*$//' | sed 's/ /-/g')
   else
     read -p "Enter branch name: " branch
   fi
