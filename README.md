@@ -23,3 +23,13 @@ Add the following with your own keybinding to trigger the script in a popup:
 ```tmux
 bind-key C-g display-popup -E -w 80% -h 60% -d "#{pane_current_path}" "<YOUR_PATH_TO_YOUR_TMUX_CONFIG>/plugins/tmux-git-worktree/src/main"
 ```
+
+## Configuration options
+
+### Ignoring worktrees
+
+You can ignore multiple worktrees with the separator `|`.
+
+```tmux
+set -g @git-worktree-ignore-worktrees ".bare|other-worktree"
+```
