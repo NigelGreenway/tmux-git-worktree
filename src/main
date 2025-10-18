@@ -83,9 +83,11 @@ if [[ "$is_root_of_repo" -eq 0 ]]; then
   directory="../$directory"
 fi
 
+window_name=$(echo "$directory" | sed 's/\.\.\///g' | sed 's/-/ /g')
+
 if [[ -d "$directory" ]]; then
   abs_directory=$(cd "$directory" && pwd)
-  if ! tmux new-window -c "$abs_directory" -n "$directory"; then
+  if ! tmux new-window -c "$abs_directory" -n "$window_name"; then
     echo "Error: Failed to create tmux window"
     read -n 1 -s -r -p "Press any key to close..."
     exit 1
@@ -108,7 +110,7 @@ else
 fi
 
 abs_directory=$(cd "$directory" && pwd)
-if ! tmux new-window -c "$abs_directory" -n "$directory"; then
+if ! tmux new-window -c "$abs_directory" -n "$window_name"; then
   echo "Error: Failed to create tmux window"
   read -n 1 -s -r -p "Press any key to close..."
   exit 1
