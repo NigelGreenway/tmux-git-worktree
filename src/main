@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 
-# Existing worktree behavior:
-# 1 = Pre-fill fzf query with existing branch (allows changing)
-# 2 = Auto-select existing branch (skip branch selection)
-EXISTING_WORKTREE_MODE=1
+is_root_of_repo=0
+ignore_list=$(tmux show -gv @git-worktree-ignore-worktrees)
 
 if [[ -z "$TMUX" ]]; then
   echo "Error: Not running inside tmux"
@@ -17,63 +15,41 @@ if ! git rev-parse --git-dir &>/dev/null; then
   exit 1
 fi
 
-ignore_list=$(tmux show -gv @git-worktree-ignore-worktrees)
+if command -v fzf &> /dev/null; then
+  directory=$(git worktree list | grep  -v -E "($ignore_list)" | awk '{print $1}' | xargs -n1 basename | fzf --print-query --prompt="Select or create worktree: " | tail -1)
+  existing_worktree=$(git worktree list | awk -v dir="$directory" '$1 ~ "/"dir"$" {print; exit}')
 
-directory=$(git worktree list | grep  -v -E "($ignore_list)" | awk '{print $1}' | xargs -n1 basename | fzf --print-query --prompt="Select or create worktree: " | tail -1)
-# Remove trailing spaces and replace all spaces with a '-' to enable quicker directory naming
-directory=$(echo $directory | sed 's/[[:space:]]*$//' | tr ' ' '-')
+  if [[ -n "$existing_worktree" ]]; then
+    directory=$(echo "$existing_worktree" | awk '{ print $1 }' | xargs -n1 basename)
+  else
+    branch=$(git branch -a | sed 's/^[* ] //' | sed 's/remotes\///' | fzf --print-query --prompt="Select or type branch: " | tail -1)
+
+    if [[ -z "$branch" ]]; then
+      echo "Error: Branch name cannot be empty"
+      read -n 1 -s -r -p "Press any key to close..."
+      exit 1
+    fi
+  fi
+else
+  read -p "Enter worktree name: " directory
+  directory=${directory}
+
+  read -p "Enter branch name: " branch
+  branch=${branch}
+fi
 
 # Exit if user cancelled (Ctrl+C or Esc)
 [[ -z "$directory" ]] && exit 0
 
-existing_worktree=$(git worktree list | awk -v dir="$directory" '$1 ~ "/"dir"$" {print; exit}')
+###
+# Sanitize variables
+# ###
 
-if [[ -n "$existing_worktree" ]]; then
-  # Extract branch from existing worktree
-  existing_branch=$(echo "$existing_worktree" | sed 's/.*\[\(.*\)\]/\1/')
+# Remove trailing spaces and replace all spaces with a '-' to enable quicker directory naming
+directory=$(echo $directory | sed 's/[[:space:]]*$//' | tr ' ' '-')
 
-  if [[ "$EXISTING_WORKTREE_MODE" -eq 1 ]]; then
-    # Mode 1: Pre-fill fzf query with existing branch
-    if command -v fzf &> /dev/null; then
-      branch=$(git branch -a | sed 's/^[* ] //' | sed 's/remotes\///' | \
-        fzf --query="$existing_branch" --print-query --prompt="Select or type branch: " | tail -1)
-
-      [[ -z "$branch" ]] && exit 0
-      branch=$(echo "$branch" | sed 's/^[^\/]*\///')
-    else
-      read -p "Enter branch name [$existing_branch]: " branch
-      branch=${branch:-$existing_branch}
-    fi
-  else
-    # Mode 2: Auto-select existing branch
-    branch="$existing_branch"
-  fi
-else
-  if command -v fzf &> /dev/null; then
-    # Use fzf to select a branch, or create a new one
-    branch=$(git branch -a | sed 's/^[* ] //' | sed 's/remotes\///' | fzf --print-query --prompt="Select or type branch: " | tail -1)
-
-    [[ -z "$branch" ]] && exit 0
-    # Strip the remote prefix (e.g., origin/, upstream/) and replace all spaces
-    # with hyphens
-    branch=$(echo "$branch" | sed 's/^[^\/]*\///' | sed 's/[[:space:]]*$//' | sed 's/ /-/g')
-  else
-    read -p "Enter branch name: " branch
-  fi
-fi
-
-if [[ -z "$branch" ]]; then
-  echo "Error: Branch name cannot be empty"
-  read -n 1 -s -r -p "Press any key to close..."
-  exit 1
-fi
-
-# Default directory to sanitized branch name if not provided
-if [[ -z "$directory" ]]; then
-  directory=$(echo "$branch" | sed 's/\//-/g')
-fi
-
-is_root_of_repo=0
+# Strip the remote prefix (e.g., origin/, upstream/) and replace all spaces with hyphens
+branch=$(echo "$branch" | sed 's/^[^\/]*\///' | sed 's/[[:space:]]*$//' | sed 's/ /-/g')
 
 if git rev-parse --is-bare-repository 2> /dev/null | grep -q "true"; then
   is_root_of_repo=1
