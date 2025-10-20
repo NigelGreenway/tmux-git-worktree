@@ -44,17 +44,10 @@ else
   branch=${branch}
 fi
 
-debug "Worktree before sanitization: $directory"
-debug "Branch before sanitization: $branch"
-
 ###
 # Sanitize variables
-# Remove trailing spaces and replace all spaces with a '-' to enable quicker directory naming
-directory=$(echo $directory | sed 's/[[:space:]]*$//' | tr ' ' '-')
-debug "Worktree after sanitization: $directory"
-# Strip the remote prefix (e.g., origin/, upstream/) and replace all spaces with hyphens
-branch=$(echo "$branch" | sed 's/^[^\/]*\///' | sed 's/[[:space:]]*$//' | sed 's/ /-/g')
-debug "Branch after sanitization: $branch"
+directory=$(clean_directory $directory)
+branch=$(clean_branch_name "$branch")
 
 if git rev-parse --is-bare-repository 2> /dev/null | grep -q "true"; then
   is_root_of_repo=1
@@ -71,9 +64,8 @@ debug "Worktree after bare repo check: $directory"
 if [[ -d "$directory" ]]; then
   debug "Worktree '$directory' exists"
   abs_directory=$(cd "$directory" && pwd)
-  window_name=$(echo $directory | sed 's/..\///g')
   debug "abs_directory: '$abs_directory'"
-  debug "window_name: '$window_name'"
+  window_name=$(clean_window_name $directory)
   check_condition_and_error_on_fail '! tmux new-window -c "$abs_directory" -n "$window_name"' 'Failed to create tmux window'
   exit 0
 fi
@@ -89,7 +81,6 @@ else
 fi
 
 abs_directory=$(cd "$directory" && pwd)
-window_name=$(echo $directory | sed 's/..\///g')
+window_name=$(clean_window_name $directory)
 debug "abs_directory: '$abs_directory'"
-debug "window_name: '$window_name'"
 check_condition_and_error_on_fail '! tmux new-window -c "$abs_directory" -n "$window_name"' 'Failed to create tmux window'

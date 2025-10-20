@@ -43,3 +43,61 @@ You can ignore multiple worktrees with the separator `|`.
 ```tmux
 set -g @git-worktree-ignore-worktrees ".bare|other-worktree"
 ```
+
+## Development
+
+### Testing
+
+This project uses [bats-core](https://github.com/bats-core/bats-core) for testing bash scripts. Tests are automatically run via GitHub Actions on push and pull requests.
+
+#### First Time Setup
+
+```bash
+# Install bats and test helper libraries
+make install
+```
+
+#### Running Tests
+
+```bash
+# Run all tests
+make test
+
+# Run specific test files
+make test-utils       # Run only utils.sh tests
+make test-main        # Run only main script tests
+
+# Run with verbose output
+make test VERBOSE=1
+```
+
+#### Static Analysis
+
+```bash
+# Check scripts for common issues
+make shellcheck
+```
+
+#### Development Workflow
+
+```bash
+# First time setup
+make install
+
+# Development cycle
+make shellcheck       # Check for shell script issues
+make test            # Run all tests
+make test-utils      # Focus on specific test file if needed
+
+# Debugging
+make test VERBOSE=1  # See detailed test output
+```
+
+#### Cleanup
+
+```bash
+# Remove test helper libraries
+make clean
+```
+
+For more commands, run `make help`.

@@ -35,3 +35,33 @@ check_condition_and_error_on_fail() {
     exit 1
   fi
 }
+
+clean_directory() {
+  debug "Directory before cleanup: $1"
+  echo "$1" |\
+    # Remove trailing spaces
+    sed 's/[[:space:]]*$//' |\
+    # Replace spaces with hyphens
+    tr ' ' '-'
+  debug "directory after cleanup: $1"
+}
+
+clean_branch_name() {
+  debug "branch before cleanup: $1"
+  echo "$1" | \
+    # Strip remote prefixes
+    sed 's/^[^\/]*\///' | \
+    # Remove trailing spaces
+    sed 's/[[:space:]]*$//' | \
+    # Replace spaces with hyphens
+    sed 's/ /-/g'
+  debug "branch after cleanup: $1"
+}
+
+clean_window_name() {
+  debug "Window name before cleanup: $1"
+  echo "$1" |\
+    # Strip ../ prefix from directory
+    sed 's/..\///g'
+  debug "Window name after cleanup: $1"
+}

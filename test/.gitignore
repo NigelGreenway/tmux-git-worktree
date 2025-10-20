@@ -1,0 +1,2 @@
+# Bats helper libraries (cloned at runtime during CI)
+test_helper/
