@@ -26,6 +26,16 @@ bind-key C-g display-popup -E -w 80% -h 60% -d "#{pane_current_path}" "<YOUR_PAT
 
 ## Configuration options
 
+### Enable verbose
+
+When developing or debugging against this plugin, you can set the verbose flag in your config, reload and see any debug statements to help squash a bug or add a new feature.
+
+When not set, it default's to `0` which is off. To enable, set it to `1`.
+
+```tmux
+set -g @git-worktree-verbose 1
+```
+
 ### Ignoring worktrees
 
 You can ignore multiple worktrees with the separator `|`.
