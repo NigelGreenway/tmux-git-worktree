@@ -49,28 +49,23 @@ teardown() {
 @test "main script detects when fzf is not installed" {
     export TMUX="tmux-session"
 
-    # Create a test git repo
     git init
     git config user.email "test@test.com"
     git config user.name "Test User"
     git commit --allow-empty -m "Initial commit"
 
-    # Mock tmux to handle all the commands the script will call
     tmux() {
         case "$1" in
             show)
-                # Return empty for all tmux options
                 echo ""
                 ;;
             new-window)
-                # Succeed on creating window
                 return 0
                 ;;
         esac
     }
     export -f tmux
 
-    # Create wrapper script with mocked read function
     cat > "$TEST_DIR/test_wrapper.sh" << 'EOF'
 #!/bin/bash
 
@@ -117,16 +112,11 @@ PATH="/bin:/usr/bin"
 # Source and run the main script
 EOF
 
-    # Append the main script path to the wrapper
     echo "source '$MAIN_SCRIPT'" >> "$TEST_DIR/test_wrapper.sh"
 
     chmod +x "$TEST_DIR/test_wrapper.sh"
 
-    # Run the wrapper script
     run "$TEST_DIR/test_wrapper.sh"
-
-    # The script should complete without hanging
-    # It might fail due to worktree creation issues, but shouldn't hang on read
 }
 
 @test "main script handles existing worktree selection" {
