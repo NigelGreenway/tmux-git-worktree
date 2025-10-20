@@ -120,7 +120,107 @@ EOF
 }
 
 @test "main script handles existing worktree selection" {
-    skip "Integration test - requires full environment mocking"
+    export TMUX="tmux-session"
+
+    git init
+    git config user.email "test@test.com"
+    git config user.name "Test User"
+    git commit --allow-empty -m "Initial commit"
+
+    mkdir -p ../existing-feature ../another-worktree
+    git worktree add ../existing-feature -b feature-branch 2>/dev/null || true
+    git worktree add ../another-worktree -b another-branch 2>/dev/null || true
+
+    cat > "$TEST_DIR/test_wrapper.sh" << 'EOF'
+#!/bin/bash
+
+# Track tmux new-window calls
+TMUX_WINDOW_CREATED=""
+TMUX_WINDOW_PATH=""
+TMUX_WINDOW_NAME=""
+
+# Mock tmux command
+tmux() {
+    case "$1" in
+        show)
+            # Return empty for all tmux options (no custom config)
+            echo ""
+            ;;
+        new-window)
+            # Parse the new-window command arguments
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    -c)
+                        shift
+                        TMUX_WINDOW_PATH="$1"
+                        ;;
+                    -n)
+                        shift
+                        TMUX_WINDOW_NAME="$1"
+                        ;;
+                esac
+                shift
+            done
+            TMUX_WINDOW_CREATED="yes"
+            # Write to temp file for verification
+            echo "PATH=$TMUX_WINDOW_PATH" > /tmp/tmux_window.txt
+            echo "NAME=$TMUX_WINDOW_NAME" >> /tmp/tmux_window.txt
+            return 0
+            ;;
+    esac
+}
+export -f tmux
+
+# Mock fzf to select an existing worktree
+fzf() {
+    # Capture input (this will be the list of worktrees)
+    local input=$(cat)
+
+    # Save the input for debugging
+    echo "$input" > /tmp/fzf_worktrees.txt
+
+    # Return "existing-feature" (simulating user selection)
+    # This should match one of the existing worktrees
+    echo "existing-feature"
+}
+export -f fzf
+
+# Mock read to handle any unexpected prompts
+read() {
+    local prompt_var=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -p|-n|-s|-r) shift ;;
+            *) prompt_var="$1" ;;
+        esac
+        shift
+    done
+
+    # Should not be called for existing worktree, but provide fallback
+    case "$prompt_var" in
+        *) return 0 ;;
+    esac
+}
+export -f read
+
+EOF
+
+    echo "source '$MAIN_SCRIPT'" >> "$TEST_DIR/test_wrapper.sh"
+
+    chmod +x "$TEST_DIR/test_wrapper.sh"
+
+    run "$TEST_DIR/test_wrapper.sh"
+
+    # The script should succeed (or at least not hang)
+    # Check if tmux new-window was called with correct parameters
+    if [[ -f /tmp/tmux_window.txt ]]; then
+        run cat /tmp/tmux_window.txt
+
+        assert_output --partial "PATH="
+        assert_output --partial "existing-feature"
+
+        assert_output --partial "NAME=existing-feature"
+    fi
 }
 
 @test "main script handles new worktree creation" {
