@@ -2,35 +2,54 @@
 
 is_root_of_repo=0
 ignore_list=$(tmux show -gv @git-worktree-ignore-worktrees)
+verbose=0
 
-if [[ -z "$TMUX" ]]; then
-  echo "Error: Not running inside tmux"
-  read -n 1 -s -r -p "Press any key to close..."
-  exit 1
-fi
+debug() {
+  if [[ "$verbose" -eq 1 ]]; then
+    echo "[debug | Line ${BASH_LINENO[0]}]: $*" >&2
+  fi
+}
 
-if ! git rev-parse --git-dir &>/dev/null; then
-  echo "Error: Not a git repository"
-  read -n 1 -s -r -p "Press any key to close..."
-  exit 1
-fi
+check_condition_and_error_on_fail() {
+  local condition="$1"
+  local message="$2"
+
+  debug "check_condition_and_error_on_fail; condition: $condition, message: $message"
+
+  if eval "$condition"; then
+    echo "Error: $message"
+    read -n 1 -s -r -p "Press any key to close..."
+    exit 1
+  fi
+}
+
+check_condition_and_error_on_fail '[[ -z "$TMUX" ]]' 'Not running inside tmux'
+check_condition_and_error_on_fail '! git rev-parse --git-dir &>/dev/null' 'Not a git repository'
 
 if command -v fzf &> /dev/null; then
+  debug "fzf installed"
   directory=$(git worktree list | grep  -v -E "($ignore_list)" | awk '{print $1}' | xargs -n1 basename | fzf --print-query --prompt="Select or create worktree: " | tail -1)
+  debug "directory: $directory"
+
+  # Exit if user cancelled (Ctrl+C or Esc)
+  [[ -z "$directory" ]] && exit 0
+
   existing_worktree=$(git worktree list | awk -v dir="$directory" '$1 ~ "/"dir"$" {print; exit}')
+  debug "existing_worktree: $existing_worktree"
 
   if [[ -n "$existing_worktree" ]]; then
+    debug "Existsing worktree found"
     directory=$(echo "$existing_worktree" | awk '{ print $1 }' | xargs -n1 basename)
+    debug "Worktree after mutation: $directory"
   else
+    debug "$directory doesn't exist as a worktree, asking for a branch"
     branch=$(git branch -a | sed 's/^[* ] //' | sed 's/remotes\///' | fzf --print-query --prompt="Select or type branch: " | tail -1)
+    debug "Branch from fzf prompt: $branch"
 
-    if [[ -z "$branch" ]]; then
-      echo "Error: Branch name cannot be empty"
-      read -n 1 -s -r -p "Press any key to close..."
-      exit 1
-    fi
+    check_condition_and_error_on_fail '[[ -z "$branch" ]]' 'Branch name cannot be empty'
   fi
 else
+  debug "fzf not installed"
   read -p "Enter worktree name: " directory
   directory=${directory}
 
@@ -38,54 +57,52 @@ else
   branch=${branch}
 fi
 
-# Exit if user cancelled (Ctrl+C or Esc)
-[[ -z "$directory" ]] && exit 0
+debug "Worktree before sanitization: $directory"
+debug "Branch before sanitization: $branch"
 
 ###
 # Sanitize variables
-# ###
-
 # Remove trailing spaces and replace all spaces with a '-' to enable quicker directory naming
 directory=$(echo $directory | sed 's/[[:space:]]*$//' | tr ' ' '-')
-
+debug "Worktree after sanitization: $directory"
 # Strip the remote prefix (e.g., origin/, upstream/) and replace all spaces with hyphens
 branch=$(echo "$branch" | sed 's/^[^\/]*\///' | sed 's/[[:space:]]*$//' | sed 's/ /-/g')
+debug "Branch after sanitization: $branch"
 
 if git rev-parse --is-bare-repository 2> /dev/null | grep -q "true"; then
   is_root_of_repo=1
 fi
 
+debug "Is the root of a repo: $is_root_of_repo"
+
 if [[ "$is_root_of_repo" -eq 0 ]]; then
   directory="../$directory"
 fi
 
+debug "Worktree after bare repo check: $directory"
+
 if [[ -d "$directory" ]]; then
+  debug "Worktree '$directory' exists"
   abs_directory=$(cd "$directory" && pwd)
-  if ! tmux new-window -c "$abs_directory" -n "$directory"; then
-    echo "Error: Failed to create tmux window"
-    read -n 1 -s -r -p "Press any key to close..."
-    exit 1
-  fi
+  window_name=$(echo $directory | sed 's/..\///g')
+  debug "abs_directory: '$abs_directory'"
+  debug "window_name: '$window_name'"
+  check_condition_and_error_on_fail '! tmux new-window -c "$abs_directory" -n "$window_name"' 'Failed to create tmux window'
   exit 0
 fi
 
+debug "Worktree '$directory' doesn't exist"
+
 if git rev-parse --quiet --verify "$branch" 2> /dev/null; then
-  if ! git worktree add "$directory" "$branch"; then
-    echo "Error: Failed to create worktree"
-    read -n 1 -s -r -p "Press any key to close..."
-    exit 1
-  fi
+  debug "Branch '$branch' exists"
+  check_condition_and_error_on_fail '! git worktree add "$directory" "$branch"' 'Failed to create worktree'
 else
-  if ! git worktree add "$directory" -b "$branch"; then
-    echo "Error: Failed to create worktree with new branch"
-    read -n 1 -s -r -p "Press any key to close..."
-    exit 1
-  fi
+  debug "Branch '$branch' doesn't exist"
+  check_condition_and_error_on_fail '! git worktree add "$directory" -b "$branch"' 'Failed to create worktree with new branch'
 fi
 
 abs_directory=$(cd "$directory" && pwd)
-if ! tmux new-window -c "$abs_directory" -n "$directory"; then
-  echo "Error: Failed to create tmux window"
-  read -n 1 -s -r -p "Press any key to close..."
-  exit 1
-fi
+window_name=$(echo $directory | sed 's/..\///g')
+debug "abs_directory: '$abs_directory'"
+debug "window_name: '$window_name'"
+check_condition_and_error_on_fail '! tmux new-window -c "$abs_directory" -n "$window_name"' 'Failed to create tmux window'
