@@ -98,6 +98,9 @@ teardown() {
     tmux() { echo "0"; }
     export -f tmux
 
+    read() { return 0; }
+    export -f read
+
     run check_condition_and_error_on_fail '[[ -z "" ]]' 'Should fail on empty'
     assert_failure
 }
