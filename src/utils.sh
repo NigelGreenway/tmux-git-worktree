@@ -62,6 +62,7 @@ clean_window_name() {
   debug "Window name before cleanup: $1"
   echo "$1" |\
     # Strip ../ prefix from directory
-    sed 's/..\///g'
+    sed 's/..\///g' |\
+    sed 's/ /-/g'
   debug "Window name after cleanup: $1"
 }
