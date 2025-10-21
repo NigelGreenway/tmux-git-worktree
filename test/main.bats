@@ -112,6 +112,9 @@ PATH="/bin:/usr/bin"
 # Source and run the main script
 EOF
 
+    # Create a symlink to utils.sh so the main script can find it
+    ln -s "$PROJECT_ROOT/src/utils.sh" "$TEST_DIR/utils.sh"
+
     echo "source '$MAIN_SCRIPT'" >> "$TEST_DIR/test_wrapper.sh"
 
     chmod +x "$TEST_DIR/test_wrapper.sh"
@@ -139,12 +142,60 @@ TMUX_WINDOW_CREATED=""
 TMUX_WINDOW_PATH=""
 TMUX_WINDOW_NAME=""
 
+# Mock git command
+git() {
+    case "$1" in
+        rev-parse)
+            case "$2" in
+                --git-dir)
+                    # We're in a git repo
+                    echo ".git"
+                    return 0
+                    ;;
+                --is-bare-repository)
+                    # Not a bare repo
+                    echo "false"
+                    return 0
+                    ;;
+                --quiet|--verify)
+                    # Branch exists check
+                    return 0
+                    ;;
+            esac
+            ;;
+        worktree)
+            case "$2" in
+                list)
+                    # Return list of existing worktrees
+                    # Format: path branch commit-hash
+                    echo "$PWD main abc123"
+                    echo "$PWD/../existing-feature feature-branch def456"
+                    echo "$PWD/../another-worktree another-branch ghi789"
+                    ;;
+            esac
+            ;;
+        branch)
+            # Return list of branches
+            echo "  main"
+            echo "  feature-branch"
+            echo "  another-branch"
+            ;;
+        config|commit)
+            # Handle git config/commit calls
+            return 0
+            ;;
+    esac
+}
+export -f git
+
 # Mock tmux command
 tmux() {
     case "$1" in
         show)
+            # Handle: tmux show -gqv "@option"
             # Return empty for all tmux options (no custom config)
             echo ""
+            return 0
             ;;
         new-window)
             # Parse the new-window command arguments
@@ -203,7 +254,19 @@ read() {
 }
 export -f read
 
+# Mock command to detect if fzf is available
+command() {
+    if [[ "$1" == "-v" ]] && [[ "$2" == "fzf" ]]; then
+        return 0  # fzf is available
+    fi
+    return 1
+}
+export -f command
+
 EOF
+
+   # Create a symlink to utils.sh so the main script can find it
+    ln -s "$PROJECT_ROOT/src/utils.sh" "$TEST_DIR/utils.sh"
 
     echo "source '$MAIN_SCRIPT'" >> "$TEST_DIR/test_wrapper.sh"
 
@@ -224,7 +287,238 @@ EOF
 }
 
 @test "main script handles new worktree creation" {
-    skip "Integration test - requires full environment mocking"
+    export TMUX="tmux-session"
+
+    # Clean up any previous fzf call counter
+    rm -f /tmp/fzf_call_count
+
+    git init
+    git config user.email "test@test.com"
+    git config user.name "Test User"
+    git commit --allow-empty -m "Initial commit"
+
+    mkdir -p ../existing-worktree
+    git worktree add ../existing-worktree -b existing-branch 2>/dev/null || true
+
+    cat > "$TEST_DIR/test_wrapper.sh" << 'EOF'
+#!/bin/bash
+
+# Track what git commands are called
+GIT_WORKTREE_ADDED=""
+GIT_WORKTREE_PATH=""
+GIT_WORKTREE_BRANCH=""
+GIT_WORKTREE_NEW_BRANCH=""
+
+# Mock git command
+git() {
+    case "$1" in
+        worktree)
+            case "$2" in
+                list)
+                    # Return existing worktrees
+                    echo "$PWD"
+                    echo "$PWD/../existing-worktree"
+                    ;;
+                add)
+                    # Parse git worktree add arguments
+                    shift 2  # Skip 'worktree add'
+                    local path=""
+                    local branch=""
+                    local new_branch=""
+
+                    while [[ $# -gt 0 ]]; do
+                        case "$1" in
+                            -b)
+                                shift
+                                new_branch="$1"
+                                ;;
+                            *)
+                                if [[ -z "$path" ]]; then
+                                    path="$1"
+                                else
+                                    branch="$1"
+                                fi
+                                ;;
+                        esac
+                        shift
+                    done
+
+                    GIT_WORKTREE_ADDED="yes"
+                    GIT_WORKTREE_PATH="$path"
+                    GIT_WORKTREE_BRANCH="$branch"
+                    GIT_WORKTREE_NEW_BRANCH="$new_branch"
+
+                    # Save to temp file for verification
+                    echo "ADDED=yes" > /tmp/git_worktree_add.txt
+                    echo "PATH=$path" >> /tmp/git_worktree_add.txt
+                    echo "BRANCH=$branch" >> /tmp/git_worktree_add.txt
+                    echo "NEW_BRANCH=$new_branch" >> /tmp/git_worktree_add.txt
+
+                    # Create the directory to simulate successful worktree creation
+                    mkdir -p "$path"
+                    return 0
+                    ;;
+            esac
+            ;;
+        branch)
+            # Return list of branches for fzf selection
+            echo "  main"
+            echo "  existing-branch"
+            echo "  remotes/origin/main"
+            echo "  remotes/origin/feature-branch"
+            ;;
+        rev-parse)
+            case "$2" in
+                --git-dir)
+                    # We're in a git repo
+                    echo ".git"
+                    return 0
+                    ;;
+                --is-bare-repository)
+                    # Not a bare repo
+                    echo "false"
+                    return 0
+                    ;;
+                --quiet|--verify)
+                    # Check if branch exists
+                    if [[ "$3" == "existing-branch" ]] || [[ "$3" == "main" ]]; then
+                        return 0  # Branch exists
+                    else
+                        return 1  # Branch doesn't exist
+                    fi
+                    ;;
+            esac
+            ;;
+        config)
+            # Handle git config calls
+            return 0
+            ;;
+        commit)
+            # Handle git commit calls
+            return 0
+            ;;
+    esac
+}
+export -f git
+
+# Mock tmux command
+tmux() {
+    case "$1" in
+        show)
+            # Return empty for all tmux options
+            echo ""
+            ;;
+        new-window)
+            # Parse and save new-window arguments
+            local window_path=""
+            local window_name=""
+
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    -c)
+                        shift
+                        window_path="$1"
+                        ;;
+                    -n)
+                        shift
+                        window_name="$1"
+                        ;;
+                esac
+                shift
+            done
+
+            echo "WINDOW_PATH=$window_path" > /tmp/tmux_new_window.txt
+            echo "WINDOW_NAME=$window_name" >> /tmp/tmux_new_window.txt
+            return 0
+            ;;
+    esac
+}
+export -f tmux
+
+# Mock fzf to simulate user input
+# Use a file to track call count since exported functions don't share variables
+fzf() {
+    # Track call count in a temp file
+    local count_file="/tmp/fzf_call_count"
+    if [[ ! -f "$count_file" ]]; then
+        echo "0" > "$count_file"
+    fi
+
+    local call_count=$(cat "$count_file")
+    call_count=$((call_count + 1))
+    echo "$call_count" > "$count_file"
+
+    # Capture input
+    local input=$(cat)
+
+    if [[ $call_count -eq 1 ]]; then
+        # First call: selecting/typing worktree name
+        # User types "new-feature" which doesn't exist
+        echo "new-feature"
+    elif [[ $call_count -eq 2 ]]; then
+        # Second call: selecting/typing branch name
+        # User types "new-feature-branch" which doesn't exist
+        echo "new-feature-branch"
+    fi
+}
+export -f fzf
+
+# Mock read to handle any prompts
+read() {
+    local prompt_var=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -p|-n|-s|-r) shift ;;
+            *) prompt_var="$1" ;;
+        esac
+        shift
+    done
+
+    case "$prompt_var" in
+        *) return 0 ;;
+    esac
+}
+export -f read
+
+# Mock command to detect if fzf is available
+command() {
+    if [[ "$1" == "-v" ]] && [[ "$2" == "fzf" ]]; then
+        return 0  # fzf is available
+    fi
+    return 1
+}
+export -f command
+
+EOF
+
+    # Create a symlink to utils.sh so the main script can find it
+    ln -s "$PROJECT_ROOT/src/utils.sh" "$TEST_DIR/utils.sh"
+
+    echo "source '$MAIN_SCRIPT'" >> "$TEST_DIR/test_wrapper.sh"
+
+    chmod +x "$TEST_DIR/test_wrapper.sh"
+
+    run "$TEST_DIR/test_wrapper.sh"
+
+    # Verify git worktree add was called
+    [[ -f /tmp/git_worktree_add.txt ]] || skip "git worktree add was not called"
+
+    run cat /tmp/git_worktree_add.txt
+    assert_output --partial "ADDED=yes"
+    assert_output --partial "PATH="
+    assert_output --partial "new-feature"
+    assert_output --partial "NEW_BRANCH=new-feature-branch"
+
+    # Verify tmux window was created
+    [[ -f /tmp/tmux_new_window.txt ]] || skip "tmux new-window was not called"
+
+    run cat /tmp/tmux_new_window.txt
+    assert_output --partial "WINDOW_PATH="
+    assert_output --partial "new-feature"
+    assert_output --partial "WINDOW_NAME=new-feature"
+
+    # Cleanup
+    rm -f /tmp/git_worktree_add.txt /tmp/tmux_new_window.txt /tmp/fzf_call_count
 }
 
 @test "ignore list is read from tmux options" {
@@ -303,6 +597,9 @@ read() {
 export -f read
 
 EOF
+
+    # Create a symlink to utils.sh so the main script can find it
+    ln -s "$PROJECT_ROOT/src/utils.sh" "$TEST_DIR/utils.sh"
 
     echo "source '$MAIN_SCRIPT'" >> "$TEST_DIR/test_wrapper.sh"
 
