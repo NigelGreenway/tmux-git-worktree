@@ -1,0 +1,36 @@
+# Dockerfile for running tests in an isolated Ubuntu environment
+FROM ubuntu:22.04
+
+# Avoid interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+  bash \
+  git \
+  curl \
+  make \
+  expect \
+  && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js and npm (for bats-core)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+  && apt-get install -y nodejs \
+  && rm -rf /var/lib/apt/lists/*
+
+# Install bats-core globally
+RUN npm install -g bats
+
+# Set working directory
+WORKDIR /app
+
+# Copy project files
+COPY . .
+
+# Install bats helper libraries
+RUN mkdir -p test/test_helper && \
+  git clone --depth 1 https://github.com/bats-core/bats-support.git test/test_helper/bats-support && \
+  git clone --depth 1 https://github.com/bats-core/bats-assert.git test/test_helper/bats-assert
+
+# Default command runs all tests
+CMD ["bats", "test/*.bats"]

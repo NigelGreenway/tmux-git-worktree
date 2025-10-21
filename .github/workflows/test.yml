@@ -1,0 +1,29 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, development ]
+  pull_request:
+    branches: [ main, development ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install bats-core
+        run: |
+          sudo npm install -g bats
+
+      - name: Install bats helper libraries
+        run: |
+          mkdir -p test/test_helper
+          git clone --depth 1 https://github.com/bats-core/bats-support.git test/test_helper/bats-support
+          git clone --depth 1 https://github.com/bats-core/bats-assert.git test/test_helper/bats-assert
+
+      - name: Run bats tests
+        run: |
+          bats test/*.bats
