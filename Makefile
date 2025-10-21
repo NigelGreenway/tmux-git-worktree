@@ -1,66 +1,54 @@
-.PHONY: help install test test-utils test-main shellcheck clean
+.PHONY: build test test-utils test-main shell clean
+
+# Docker configuration
+DOCKER_IMAGE_NAME = tmux-git-worktree-test
+DOCKER_TAG = latest
 
 help:
 	@echo "Available targets:"
-	@echo "  make install      - Install bats-core and helper libraries"
-	@echo "  make test         - Run all tests"
-	@echo "  make test-utils   - Run utils.sh tests only"
-	@echo "  make test-main    - Run main script tests only"
-	@echo "  make clean        - Remove test helper libraries"
 	@echo ""
-	@echo "Options:"
-	@echo "  VERBOSE=1         - Run tests with verbose output"
-	@echo ""
-	@echo "Examples:"
-	@echo "  make test VERBOSE=1"
-	@echo "  make test-utils"
+	@echo "Testing (isolated environment with Docker):"
+	@echo "  make build      - Build Docker test image"
+	@echo "  make test       - Run all tests in Docker"
+	@echo "  make test-utils - Run utils.sh tests in Docker"
+	@echo "  make test-main  - Run main script tests in Docker"
+	@echo "  make shell      - Run shell in Docker"
+	@echo "  make clean      - Remove Docker test image"
 
-install:
-	@echo "Installing bats-core..."
-	@command -v bats >/dev/null 2>&1 || { \
-		echo "bats not found. Installing via npm..."; \
-		npm install -g bats; \
-	}
-	@echo "Installing bats helper libraries..."
-	@mkdir -p test/test_helper
-	@if [ ! -d "test/test_helper/bats-support" ]; then \
-		git clone --depth 1 https://github.com/bats-core/bats-support.git test/test_helper/bats-support; \
-	else \
-		echo "bats-support already installed"; \
-	fi
-	@if [ ! -d "test/test_helper/bats-assert" ]; then \
-		git clone --depth 1 https://github.com/bats-core/bats-assert.git test/test_helper/bats-assert; \
-	else \
-		echo "bats-assert already installed"; \
-	fi
-	@echo "Installation complete!"
+build:
+	@echo "Building Docker test image..."
+	@docker build -f Dockerfile.test -t $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .
+	@echo "Docker image built successfully!"
 
-test:
-	@echo "Running all tests..."
+test: build
+	@echo "Running all tests in Docker..."
 ifdef VERBOSE
-	@bats test/*.bats --tap
+	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/*.bats --tap
 else
-	@bats test/*.bats
+	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/*.bats
 endif
 
-test-utils:
-	@echo "Running utils.sh tests..."
+test-utils: build
+	@echo "Running utils.sh tests in Docker..."
 ifdef VERBOSE
-	@bats test/utils.bats --tap
+	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/utils.bats --tap
 else
-	@bats test/utils.bats
+	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/utils.bats
 endif
 
-test-main:
-	@echo "Running main script tests..."
+test-main: build
+	@echo "Running main script tests in Docker..."
 ifdef VERBOSE
-	@bats test/main.bats --tap
+	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/main.bats --tap
 else
-	@bats test/main.bats
+	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/main.bats
 endif
+
+shell: build
+	@echo "Opening interactive shell in Docker container..."
+	@docker run --rm -it $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) /bin/bash
 
 clean:
-	@echo "Removing test helper libraries..."
-	@rm -rf test/test_helper/bats-support
-	@rm -rf test/test_helper/bats-assert
-	@echo "Cleanup complete!"
+	@echo "Removing Docker test image..."
+	@docker rmi $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) 2>/dev/null || echo "Image not found"
+	@echo "Docker cleanup complete!"
