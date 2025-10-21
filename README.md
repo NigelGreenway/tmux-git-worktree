@@ -43,3 +43,17 @@ You can ignore multiple worktrees with the separator `|`.
 ```tmux
 set -g @git-worktree-ignore-worktrees ".bare|other-worktree"
 ```
+
+## Development
+
+For safer, isolated development, use Docker to run tests in a containerized Ubuntu environment. This prevents any potential side effects on your host system.
+
+```bash
+make docker-build
+make docker-test
+make docker-clean
+```
+
+For more commands, run `make help`.
+
+To run the plugin without loading it into tmux all the time, run `./src/main` in the root of the project to trigger the functionality that would run within the TMUX display-popup.
