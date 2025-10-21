@@ -46,7 +46,7 @@ fi
 
 ###
 # Sanitize variables
-directory=$(clean_directory $directory)
+directory=$(clean_directory "$directory")
 branch=$(clean_branch_name "$branch")
 
 if git rev-parse --is-bare-repository 2> /dev/null | grep -q "true"; then
