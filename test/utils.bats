@@ -124,12 +124,12 @@ teardown() {
 }
 
 @test "window name removes ../ prefix correctly" {
-    result=$(clean_window_name "../worktree-name")
+    result=$(clean_window_name "../worktree name")
     assert_equal "$result" "worktree-name"
 }
 
 @test "window name handles multiple ../ correctly" {
-    result=$(clean_window_name "../../worktree-name")
+    result=$(clean_window_name "../../worktree name")
     assert_equal "$result" "worktree-name"
 }
 
