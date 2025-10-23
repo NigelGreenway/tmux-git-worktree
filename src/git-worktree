@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+
+CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "$CURRENT_DIR/utils.sh"
+
+is_root_of_repo=0
+
+### Declare vars via tmux options
+ignore_list=$(get_option_value "@git-worktree-ignore-worktrees" "")
+keybinding=$(get_option_value "@git-worktree-keybinding" "C-g")
+debug "ignore_list: $ignore_list"
+debug "keybinding: $keybinding"
+### end
+
+check_condition_and_error_on_fail '[[ -z "$TMUX" ]]' 'Not running inside tmux'
+check_condition_and_error_on_fail '! git rev-parse --git-dir &>/dev/null' 'Not a git repository'
+
+if command -v fzf &> /dev/null; then
+  debug "fzf installed"
+  directory=$(git worktree list | grep  -v -E "($ignore_list)" | awk '{print $1}' | xargs -n1 basename | fzf --print-query --prompt="Select or create worktree: " | tail -1)
+  debug "directory: $directory"
+
+  # Exit if user cancelled (Ctrl+C or Esc)
+  [[ -z "$directory" ]] && exit 0
+
+  existing_worktree=$(git worktree list | awk -v dir="$directory" '$1 ~ "/"dir"$" {print; exit}')
+  debug "existing_worktree: $existing_worktree"
+
+  if [[ -n "$existing_worktree" ]]; then
+    debug "Existsing worktree found"
+    directory=$(echo "$existing_worktree" | awk '{ print $1 }' | xargs -n1 basename)
+    debug "Worktree after mutation: $directory"
+  else
+    debug "$directory doesn't exist as a worktree, asking for a branch"
+    branch=$(git branch -a | sed 's/^[* ] //' | sed 's/remotes\///' | fzf --print-query --prompt="Select or type branch: " | tail -1)
+    debug "Branch from fzf prompt: $branch"
+
+    check_condition_and_error_on_fail '[[ -z "$branch" ]]' 'Branch name cannot be empty'
+  fi
+else
+  debug "fzf not installed"
+  read -p "Enter worktree name: " directory
+  directory=${directory}
+
+  read -p "Enter branch name: " branch
+  branch=${branch}
+fi
+
+###
+# Sanitize variables
+directory=$(clean_directory "$directory")
+branch=$(clean_branch_name "$branch")
+
+if git rev-parse --is-bare-repository 2> /dev/null | grep -q "true"; then
+  is_root_of_repo=1
+fi
+
+debug "Is the root of a repo: $is_root_of_repo"
+
+if [[ "$is_root_of_repo" -eq 0 ]]; then
+  directory="../$directory"
+fi
+
+debug "Worktree after bare repo check: $directory"
+
+if [[ -d "$directory" ]]; then
+  debug "Worktree '$directory' exists"
+  abs_directory=$(cd "$directory" && pwd)
+  debug "abs_directory: '$abs_directory'"
+  window_name=$(clean_window_name $directory)
+  check_condition_and_error_on_fail '! tmux new-window -c "$abs_directory" -n "$window_name"' 'Failed to create tmux window'
+  exit 0
+fi
+
+debug "Worktree '$directory' doesn't exist"
+
+if git rev-parse --quiet --verify "$branch" 2> /dev/null; then
+  debug "Branch '$branch' exists"
+  check_condition_and_error_on_fail '! git worktree add "$directory" "$branch"' 'Failed to create worktree'
+else
+  debug "Branch '$branch' doesn't exist"
+  check_condition_and_error_on_fail '! git worktree add "$directory" -b "$branch"' 'Failed to create worktree with new branch'
+fi
+
+abs_directory=$(cd "$directory" && pwd)
+window_name=$(clean_window_name $directory)
+debug "abs_directory: '$abs_directory'"
+check_condition_and_error_on_fail '! tmux new-window -c "$abs_directory" -n "$window_name"' 'Failed to create tmux window'

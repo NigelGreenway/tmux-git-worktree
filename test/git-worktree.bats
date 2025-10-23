@@ -5,7 +5,7 @@ load 'test_helper/bats-assert/load'
 
 setup() {
     PROJECT_ROOT="$( cd "$( dirname "$BATS_TEST_FILENAME" )/.." && pwd )"
-    MAIN_SCRIPT="$PROJECT_ROOT/src/main"
+    MAIN_SCRIPT="$PROJECT_ROOT/src/git-worktree"
 
     TEST_DIR=$(mktemp -d)
     cd "$TEST_DIR"

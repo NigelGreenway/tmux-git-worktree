@@ -20,14 +20,6 @@ set -g @plugin 'NigelGreenway/tmux-git-workflow'
 
 Hit <prefix> + I to fetch the plugin and source it.
 
-## Usage
-
-Add the following with your own keybinding to trigger the script in a popup:
-
-```tmux
-bind-key C-g display-popup -E -w 80% -h 60% -d "#{pane_current_path}" "<YOUR_PATH_TO_YOUR_TMUX_CONFIG>/plugins/tmux-git-worktree/src/main"
-```
-
 ## Configuration options
 
 ### Enable verbose
@@ -46,6 +38,16 @@ You can ignore multiple worktrees with the separator `|`.
 
 ```tmux
 set -g @git-worktree-ignore-worktrees ".bare|other-worktree"
+```
+
+### Display popup configuration
+
+It is possible to customise the display popup with the keybinding, width and the height.
+
+```tmux
+set -g @git-worktree-keybinding "M-g" # Default is C-g
+set -g @git-worktree-popup-width "90" # Default is 80
+set -g @@git-worktree-popup-height "20" # Default is 60
 ```
 
 ## Development
