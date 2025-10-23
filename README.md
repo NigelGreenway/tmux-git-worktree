@@ -62,4 +62,4 @@ make docker-clean
 
 For more commands, run `make help`.
 
-To run the plugin without loading it into tmux all the time, run `./src/main` in the root of the project to trigger the functionality that would run within the TMUX display-popup.
+To run the plugin without loading it into tmux all the time, run `./src/git-worktree` in the root of the project to trigger the functionality that would run within the TMUX display-popup.
