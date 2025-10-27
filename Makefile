@@ -39,9 +39,9 @@ endif
 test-main: build
 	@echo "Running main script tests in Docker..."
 ifdef VERBOSE
-	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/main.bats --tap
+	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/git-worktree.bats --tap
 else
-	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/main.bats
+	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/git-worktree.bats
 endif
 
 shell: build
