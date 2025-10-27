@@ -2,7 +2,7 @@
 
 An opinionated plugin to select or create git worktree's and branches, and then open in a new window within the current tmux session.
 
-The problem was down to being lazy: I didn't want to have to create a new tmux window -> create a worktree -> select or create a branch. I mean why when with one keybinding, two input prompts and it's done.
+The problem was down to being lazy: I didn't want to have to create a new tmux window -> create a worktree -> select or create a branch -> select a commit reference to branch off (default is `HEAD` - current tip in that branch). I mean why when with one keybinding, two input prompts and it's done.
 
 ![Demo of tmux git worktree plugin](./assets/demo.webp "Demo of Git Worktree tmux plugin")
 
