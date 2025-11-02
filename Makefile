@@ -17,7 +17,7 @@ help:
 
 build:
 	@echo "Building Docker test image..."
-	@docker build -f Dockerfile.test -t $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .
+	@DOCKER_BUILDKIT=1 docker build --network=host -f Dockerfile.test -t $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .
 	@echo "Docker image built successfully!"
 
 test: build
