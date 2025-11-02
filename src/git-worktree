@@ -35,6 +35,9 @@ if command -v fzf &> /dev/null; then
     branch=$(git branch -a | sed 's/^[* ] //' | sed 's/remotes\///' | fzf --print-query --prompt="Select or type branch: " | tail -1)
     debug "Branch from fzf prompt: $branch"
 
+    commit=$(git --no-pager log --no-color --oneline --no-merges --decorate | fzf --print-query --prompt="Select commit ref: " | tail -1 | awk '{print $1}')
+    debug "Commit from fzf prompt: $commit"
+
     check_condition_and_error_on_fail '[[ -z "$branch" ]]' 'Branch name cannot be empty'
   fi
 else
@@ -79,7 +82,7 @@ if git rev-parse --quiet --verify "$branch" 2> /dev/null; then
   check_condition_and_error_on_fail '! git worktree add "$directory" "$branch"' 'Failed to create worktree'
 else
   debug "Branch '$branch' doesn't exist"
-  check_condition_and_error_on_fail '! git worktree add "$directory" -b "$branch"' 'Failed to create worktree with new branch'
+  check_condition_and_error_on_fail '! git worktree add "$directory" -b "$branch" "$commit"' 'Failed to create worktree with new branch'
 fi
 
 abs_directory=$(cd "$directory" && pwd)
