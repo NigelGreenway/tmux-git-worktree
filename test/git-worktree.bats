@@ -312,6 +312,15 @@ GIT_WORKTREE_NEW_BRANCH=""
 # Mock git command
 git() {
     case "$1" in
+        --no-pager)
+            # Handle: git --no-pager log --no-color --oneline --no-merges --decorate
+            if [[ "$2" == "log" ]]; then
+                # Return sample commit history
+                echo "abc123 (HEAD -> main) Recent commit"
+                echo "def456 Previous commit"
+                echo "ghi789 Initial commit"
+            fi
+            ;;
         worktree)
             case "$2" in
                 list)
@@ -325,6 +334,7 @@ git() {
                     local path=""
                     local branch=""
                     local new_branch=""
+                    local commit_ref=""
 
                     while [[ $# -gt 0 ]]; do
                         case "$1" in
@@ -335,8 +345,10 @@ git() {
                             *)
                                 if [[ -z "$path" ]]; then
                                     path="$1"
-                                else
+                                elif [[ -z "$new_branch" ]]; then
                                     branch="$1"
+                                else
+                                    commit_ref="$1"
                                 fi
                                 ;;
                         esac
@@ -353,6 +365,7 @@ git() {
                     echo "PATH=$path" >> /tmp/git_worktree_add.txt
                     echo "BRANCH=$branch" >> /tmp/git_worktree_add.txt
                     echo "NEW_BRANCH=$new_branch" >> /tmp/git_worktree_add.txt
+                    echo "COMMIT_REF=$commit_ref" >> /tmp/git_worktree_add.txt
 
                     # Create the directory to simulate successful worktree creation
                     mkdir -p "$path"
@@ -459,6 +472,10 @@ fzf() {
         # Second call: selecting/typing branch name
         # User types "new-feature-branch" which doesn't exist
         echo "new-feature-branch"
+    elif [[ $call_count -eq 3 ]]; then
+        # Third call: selecting commit ref
+        # User selects a commit from the history
+        echo "abc123 (HEAD -> main) Recent commit"
     fi
 }
 export -f fzf
@@ -508,6 +525,7 @@ EOF
     assert_output --partial "PATH="
     assert_output --partial "new-feature"
     assert_output --partial "NEW_BRANCH=new-feature-branch"
+    assert_output --partial "COMMIT_REF=abc123"
 
     # Verify tmux window was created
     [[ -f /tmp/tmux_new_window.txt ]] || skip "tmux new-window was not called"
