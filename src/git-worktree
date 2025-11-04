@@ -19,6 +19,8 @@ debug "delete_worktree_key: $delete_worktree_key"
 debug "time_to_live: $time_to_live"
 ### end
 
+delete_keybinding="$modifier_key-$delete_worktree_key"
+
 check_condition_and_error_on_fail '[[ -z "$TMUX" ]]' 'Not running inside tmux'
 check_condition_and_error_on_fail '! git rev-parse --git-dir &>/dev/null' 'Not a git repository'
 
@@ -31,7 +33,7 @@ if command -v fzf &> /dev/null; then
     grep  -v -E "($ignore_list)" |\
     awk '{print $1}' |\
     xargs -n1 basename |\
-    fzf --print-query --expect=ctrl-d --prompt="Select or create worktree: " --header="$header"
+    fzf --print-query --expect="$delete_keybinding" --prompt="Select or create worktree: " --header="$header"
   )
 
   query="${response[0]}"
@@ -45,7 +47,7 @@ if command -v fzf &> /dev/null; then
   # Exit if user cancelled (Ctrl+C or Esc)
   [[ -z "$query" && -z "$key" && -z "$selection" ]] && exit 0
 
-  if [[ "$key" == "ctrl-d" ]]; then
+  if [[ "$key" == "$delete_keybinding" ]]; then
     debug "Deleting the worktree: $selection"
 
     read -p "Delete worktree $selection? [Y/n] " confirmation
