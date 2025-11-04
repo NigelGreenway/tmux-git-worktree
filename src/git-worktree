@@ -8,30 +8,76 @@ is_root_of_repo=0
 ### Declare vars via tmux options
 ignore_list=$(get_option_value "@git-worktree-ignore-worktrees" "")
 keybinding=$(get_option_value "@git-worktree-keybinding" "C-g")
+modifier_key=$(get_option_value "@git-worktree-modifer" "ctrl")
+delete_worktree_key=$(get_option_value "@git-worktree-delete-key" "d")
+time_to_live=$(get_option_value "@git-worktree-ttl" "2")
+
 debug "ignore_list: $ignore_list"
 debug "keybinding: $keybinding"
+debug "modifer_key: $modifier_key"
+debug "delete_worktree_key: $delete_worktree_key"
+debug "time_to_live: $time_to_live"
 ### end
+
+delete_keybinding="$modifier_key-$delete_worktree_key"
 
 check_condition_and_error_on_fail '[[ -z "$TMUX" ]]' 'Not running inside tmux'
 check_condition_and_error_on_fail '! git rev-parse --git-dir &>/dev/null' 'Not a git repository'
 
 if command -v fzf &> /dev/null; then
   debug "fzf installed"
-  directory=$(git worktree list | grep  -v -E "($ignore_list)" | awk '{print $1}' | xargs -n1 basename | fzf --print-query --prompt="Select or create worktree: " | tail -1)
-  debug "directory: $directory"
+
+  header="Enter: Create/Switch worktree | $modifier_key-$delete_worktree_key: Remove worktree"
+
+  readarray -t response < <(git worktree list |\
+    grep  -v -E "($ignore_list)" |\
+    awk '{print $1}' |\
+    xargs -n1 basename |\
+    fzf --print-query --expect="$delete_keybinding" --prompt="Select or create worktree: " --header="$header"
+  )
+
+  query="${response[0]}"
+  key="${response[1]}"
+  selection="${response[2]}"
+
+  debug "fzf keypress: $query"
+  debug "fzf keypress: $key"
+  debug "fzf directory: $selection"
 
   # Exit if user cancelled (Ctrl+C or Esc)
-  [[ -z "$directory" ]] && exit 0
+  [[ -z "$query" && -z "$key" && -z "$selection" ]] && exit 0
 
-  existing_worktree=$(git worktree list | awk -v dir="$directory" '$1 ~ "/"dir"$" {print; exit}')
-  debug "existing_worktree: $existing_worktree"
+  if [[ "$key" == "$delete_keybinding" ]]; then
+    debug "Deleting the worktree: $selection"
 
-  if [[ -n "$existing_worktree" ]]; then
-    debug "Existsing worktree found"
-    directory=$(echo "$existing_worktree" | awk '{ print $1 }' | xargs -n1 basename)
-    debug "Worktree after mutation: $directory"
-  else
-    debug "$directory doesn't exist as a worktree, asking for a branch"
+    read -p "Delete worktree $selection? [Y/n] " confirmation
+    if [[ "$confirmation" == "n" || "$confirmation" == "N" ]]; then
+      debug "skipped deletion"
+    else
+      debug "removing worktree: $selection"
+      git worktree remove $selection
+      debug "removed worktree: $selection"
+      echo "Removed worktree: $selection"
+      sleep "$time_to_live"
+    fi
+
+    exit 0
+  fi
+
+  if [[ -n "$selection" ]]; then
+    existing_worktree=$(git worktree list | awk -v dir="$selection" '$1 ~ "/"dir"$" {print; exit}')
+    debug "Existing worktree found"
+
+    if [[ -n "$existing_worktree" ]]; then
+      debug "existing_worktree: $existing_worktree"
+      directory=$(echo "$existing_worktree" | awk '{ print $1 }' | xargs -n1 basename)
+      debug "Worktree after mutation: $directory"
+    fi
+  fi
+
+  if [[ -n "$query" ]]; then
+    debug "$query doesn't exist as a worktree, asking for a branch"
+
     branch=$(git branch -a | sed 's/^[* ] //' | sed 's/remotes\///' | fzf --print-query --prompt="Select or type branch: " | tail -1)
     debug "Branch from fzf prompt: $branch"
 
@@ -39,6 +85,8 @@ if command -v fzf &> /dev/null; then
     debug "Commit from fzf prompt: $commit"
 
     check_condition_and_error_on_fail '[[ -z "$branch" ]]' 'Branch name cannot be empty'
+
+    directory="$query"
   fi
 else
   debug "fzf not installed"
