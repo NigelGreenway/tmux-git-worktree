@@ -55,6 +55,7 @@ set -g @@git-worktree-popup-height "20" # Default is 60
 ```tmux
 set -g @git-worktree-modifer "ctrl"     # Default is ctrl
 set -g @git-worktree-delete-key "d"     # Default is d
+set -g git-worktree-delete-key "r"      # Default is r
 set -g @git-worktree-ttl "5"            # Default is 2
 ```
 

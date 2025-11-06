@@ -10,6 +10,7 @@ ignore_list=$(get_option_value "@git-worktree-ignore-worktrees" "")
 keybinding=$(get_option_value "@git-worktree-keybinding" "C-g")
 modifier_key=$(get_option_value "@git-worktree-modifer" "ctrl")
 delete_worktree_key=$(get_option_value "@git-worktree-delete-key" "d")
+switch_to_commit_refs_key=$(get_option_value "@git-worktree-delete-key" "r")
 time_to_live=$(get_option_value "@git-worktree-ttl" "2")
 
 debug "ignore_list: $ignore_list"
@@ -36,36 +37,36 @@ if command -v fzf &> /dev/null; then
     fzf --print-query --expect="$delete_keybinding" --prompt="Select or create worktree: " --header="$header"
   )
 
-  query="${response[0]}"
-  key="${response[1]}"
-  selection="${response[2]}"
+  wt_query="${response[0]}"
+  wt_key="${response[1]}"
+  wt_selection="${response[2]}"
 
-  debug "fzf keypress: $query"
-  debug "fzf keypress: $key"
-  debug "fzf directory: $selection"
+  debug "fzf query: $wt_query"
+  debug "fzf keypress: $wt_key"
+  debug "fzf directory: $wt_selection"
 
   # Exit if user cancelled (Ctrl+C or Esc)
-  [[ -z "$query" && -z "$key" && -z "$selection" ]] && exit 0
+  [[ -z "$wt_query" && -z "$wt_key" && -z "$wt_selection" ]] && exit 0
 
-  if [[ "$key" == "$delete_keybinding" ]]; then
-    debug "Deleting the worktree: $selection"
+  if [[ "$wt_key" == "$delete_keybinding" ]]; then
+    debug "Deleting the worktree: $wt_selection"
 
-    read -p "Delete worktree $selection? [Y/n] " confirmation
+    read -p "Delete worktree $wt_selection? [Y/n] " confirmation
     if [[ "$confirmation" == "n" || "$confirmation" == "N" ]]; then
       debug "skipped deletion"
     else
-      debug "removing worktree: $selection"
-      git worktree remove $selection
-      debug "removed worktree: $selection"
-      echo "Removed worktree: $selection"
+      debug "removing worktree: $wt_selection"
+      git worktree remove $wt_selection
+      debug "removed worktree: $wt_selection"
+      echo "Removed worktree: $wt_selection"
       sleep "$time_to_live"
     fi
 
     exit 0
   fi
 
-  if [[ -n "$selection" ]]; then
-    existing_worktree=$(git worktree list | awk -v dir="$selection" '$1 ~ "/"dir"$" {print; exit}')
+  if [[ -n "$wt_selection" ]]; then
+    existing_worktree=$(git worktree list | awk -v dir="$wt_selection" '$1 ~ "/"dir"$" {print; exit}')
     debug "Existing worktree found"
 
     if [[ -n "$existing_worktree" ]]; then
@@ -75,18 +76,37 @@ if command -v fzf &> /dev/null; then
     fi
   fi
 
-  if [[ -n "$query" ]]; then
-    debug "$query doesn't exist as a worktree, asking for a branch"
+  if [[ -n "$wt_query" ]]; then
+    debug "$wt_query doesn't exist as a worktree, asking for a branch"
 
-    branch=$(git branch -a | sed 's/^[* ] //' | sed 's/remotes\///' | fzf --print-query --prompt="Select or type branch: " | tail -1)
-    debug "Branch from fzf prompt: $branch"
+    readarray response -t < <(git branch -a | sed 's/^[* ] //' | sed 's/remotes\///' | fzf --print-query --prompt="Select or type branch: ")
 
-    commit=$(git --no-pager log --no-color --oneline --no-merges --decorate | fzf --print-query --prompt="Select commit ref: " | tail -1 | awk '{print $1}')
-    debug "Commit from fzf prompt: $commit"
+    branch_query=$(echo "${response[0]}" | sed 's/\n//')
+    branch_selection=$(echo "${response[1]}" | sed 's/\n//')
 
-    check_condition_and_error_on_fail '[[ -z "$branch" ]]' 'Branch name cannot be empty'
+    debug "Branch from fzf prompt: $branch_query, $branch_selection"
 
-    directory="$query"
+    check_condition_and_error_on_fail '[[ -z "$branch_query" && -z "$branch_selection" ]]' 'Branch name cannot be empty'
+
+    branch=$branch_selection
+
+    if [[ ! -z "$branch_query" ]]; then
+      branch=$branch_query
+      commit=$(\
+        git branch -a |\
+        sed 's/^[* ] //' |\
+        sed 's/remotes\///' |\
+        fzf \
+          --print-query \
+          --header="Enter: Select branch | $modifier_key-$switch_to_commit_refs_key: switch to commit refs" \
+          --bind="$modifier_key-$switch_to_commit_refs_key:become(git --no-pager log --no-color --oneline --no-merges --decorate | fzf --print-query  --prompt='Select commit ref: ' | tail -1 | awk '{print $1}')" |\
+        awk '{print $1}' |\
+        tail -1
+       )
+      echo "Commit from fzf prompt: $commit"
+    fi
+
+    directory="$wt_query"
   fi
 else
   debug "fzf not installed"
