@@ -45,9 +45,18 @@ set -g @git-worktree-ignore-worktrees ".bare|other-worktree"
 It is possible to customise the display popup with the keybinding, width and the height.
 
 ```tmux
-set -g @git-worktree-keybinding "M-g" # Default is C-g
-set -g @git-worktree-popup-width "90" # Default is 80
+set -g @git-worktree-keybinding "M-g"   # Default is C-g
+set -g @git-worktree-popup-width "90"   # Default is 80
 set -g @@git-worktree-popup-height "20" # Default is 60
+```
+
+### Functionality configuration
+
+```tmux
+set -g @git-worktree-modifer "ctrl"     # Default is ctrl
+set -g @git-worktree-delete-key "d"     # Default is d
+set -g git-worktree-delete-key "r"      # Default is r
+set -g @git-worktree-ttl "5"            # Default is 2
 ```
 
 ## Development

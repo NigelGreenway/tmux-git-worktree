@@ -8,37 +8,106 @@ is_root_of_repo=0
 ### Declare vars via tmux options
 ignore_list=$(get_option_value "@git-worktree-ignore-worktrees" "")
 keybinding=$(get_option_value "@git-worktree-keybinding" "C-g")
+modifier_key=$(get_option_value "@git-worktree-modifer" "ctrl")
+delete_worktree_key=$(get_option_value "@git-worktree-delete-key" "d")
+switch_to_commit_refs_key=$(get_option_value "@git-worktree-delete-key" "r")
+time_to_live=$(get_option_value "@git-worktree-ttl" "2")
+
 debug "ignore_list: $ignore_list"
 debug "keybinding: $keybinding"
+debug "modifer_key: $modifier_key"
+debug "delete_worktree_key: $delete_worktree_key"
+debug "time_to_live: $time_to_live"
 ### end
+
+delete_keybinding="$modifier_key-$delete_worktree_key"
+show_commit_ref_binding="$modifier_key-$switch_to_commit_refs_key"
 
 check_condition_and_error_on_fail '[[ -z "$TMUX" ]]' 'Not running inside tmux'
 check_condition_and_error_on_fail '! git rev-parse --git-dir &>/dev/null' 'Not a git repository'
 
 if command -v fzf &> /dev/null; then
   debug "fzf installed"
-  directory=$(git worktree list | grep  -v -E "($ignore_list)" | awk '{print $1}' | xargs -n1 basename | fzf --print-query --prompt="Select or create worktree: " | tail -1)
-  debug "directory: $directory"
+
+  header="Enter: Create/Switch worktree | $modifier_key-$delete_worktree_key: Remove worktree"
+
+  readarray -t response < <(git worktree list |\
+    grep  -v -E "($ignore_list)" |\
+    awk '{print $1}' |\
+    xargs -n1 basename |\
+    fzf --print-query --expect="$delete_keybinding" --prompt="Select or create worktree: " --header="$header"
+  )
+
+  wt_query="${response[0]}"
+  wt_key="${response[1]}"
+  wt_selection="${response[2]}"
+
+  debug "fzf query: $wt_query"
+  debug "fzf keypress: $wt_key"
+  debug "fzf directory: $wt_selection"
 
   # Exit if user cancelled (Ctrl+C or Esc)
-  [[ -z "$directory" ]] && exit 0
+  [[ -z "$wt_query" && -z "$wt_key" && -z "$wt_selection" ]] && exit 0
 
-  existing_worktree=$(git worktree list | awk -v dir="$directory" '$1 ~ "/"dir"$" {print; exit}')
-  debug "existing_worktree: $existing_worktree"
+  if [[ "$wt_key" == "$delete_keybinding" ]]; then
+    debug "Deleting the worktree: $wt_selection"
 
-  if [[ -n "$existing_worktree" ]]; then
-    debug "Existsing worktree found"
-    directory=$(echo "$existing_worktree" | awk '{ print $1 }' | xargs -n1 basename)
-    debug "Worktree after mutation: $directory"
-  else
-    debug "$directory doesn't exist as a worktree, asking for a branch"
-    branch=$(git branch -a | sed 's/^[* ] //' | sed 's/remotes\///' | fzf --print-query --prompt="Select or type branch: " | tail -1)
-    debug "Branch from fzf prompt: $branch"
+    read -p "Delete worktree $wt_selection? [Y/n] " confirmation
+    if [[ "$confirmation" == "n" || "$confirmation" == "N" ]]; then
+      debug "skipped deletion"
+    else
+      debug "removing worktree: $wt_selection"
+      git worktree remove $wt_selection
+      debug "removed worktree: $wt_selection"
+      echo "Removed worktree: $wt_selection"
+      sleep "$time_to_live"
+    fi
 
-    commit=$(git --no-pager log --no-color --oneline --no-merges --decorate | fzf --print-query --prompt="Select commit ref: " | tail -1 | awk '{print $1}')
-    debug "Commit from fzf prompt: $commit"
+    exit 0
+  fi
 
-    check_condition_and_error_on_fail '[[ -z "$branch" ]]' 'Branch name cannot be empty'
+  if [[ -n "$wt_selection" ]]; then
+    existing_worktree=$(git worktree list | awk -v dir="$wt_selection" '$1 ~ "/"dir"$" {print; exit}')
+    debug "Existing worktree found"
+
+    if [[ -n "$existing_worktree" ]]; then
+      debug "existing_worktree: $existing_worktree"
+      directory=$(echo "$existing_worktree" | awk '{ print $1 }' | xargs -n1 basename)
+      debug "Worktree after mutation: $directory"
+    fi
+  fi
+
+  if [[ -n "$wt_query" ]]; then
+    debug "$wt_query doesn't exist as a worktree, asking for a branch"
+
+    readarray response -t < <(git branch -a | sed 's/^[* ] //' | sed 's/remotes\///' | fzf --print-query --prompt="Select or type branch: ")
+
+    branch_query=$(echo "${response[0]}" | sed 's/\n//')
+    branch_selection=$(echo "${response[1]}" | sed 's/\n//')
+
+    debug "Branch from fzf prompt: $branch_query, $branch_selection"
+
+    check_condition_and_error_on_fail '[[ -z "$branch_query" && -z "$branch_selection" ]]' 'Branch name cannot be empty'
+
+    branch=$branch_selection
+
+    if [[ ! -z "$branch_query" ]]; then
+      branch=$branch_query
+      commit=$(\
+        git branch -a |\
+        sed 's/^[* ] //' |\
+        sed 's/remotes\///' |\
+        fzf \
+          --print-query \
+          --header="Enter: Select branch | $show_commit_ref_binding: switch to commit refs" \
+          --bind="$show_commit_ref_binding:become(git --no-pager log --no-color --oneline --no-merges --decorate | fzf --print-query  --prompt='Select commit ref: ' | tail -1 | awk '{print $1}')" |\
+        awk '{print $1}' |\
+        tail -1
+       )
+      echo "Commit from fzf prompt: $commit"
+    fi
+
+    directory="$wt_query"
   fi
 else
   debug "fzf not installed"
