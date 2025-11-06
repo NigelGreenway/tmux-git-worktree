@@ -21,6 +21,7 @@ debug "time_to_live: $time_to_live"
 ### end
 
 delete_keybinding="$modifier_key-$delete_worktree_key"
+show_commit_ref_binding="$modifier_key-$switch_to_commit_refs_key"
 
 check_condition_and_error_on_fail '[[ -z "$TMUX" ]]' 'Not running inside tmux'
 check_condition_and_error_on_fail '! git rev-parse --git-dir &>/dev/null' 'Not a git repository'
@@ -98,8 +99,8 @@ if command -v fzf &> /dev/null; then
         sed 's/remotes\///' |\
         fzf \
           --print-query \
-          --header="Enter: Select branch | $modifier_key-$switch_to_commit_refs_key: switch to commit refs" \
-          --bind="$modifier_key-$switch_to_commit_refs_key:become(git --no-pager log --no-color --oneline --no-merges --decorate | fzf --print-query  --prompt='Select commit ref: ' | tail -1 | awk '{print $1}')" |\
+          --header="Enter: Select branch | $show_commit_ref_binding: switch to commit refs" \
+          --bind="$show_commit_ref_binding:become(git --no-pager log --no-color --oneline --no-merges --decorate | fzf --print-query  --prompt='Select commit ref: ' | tail -1 | awk '{print $1}')" |\
         awk '{print $1}' |\
         tail -1
        )
