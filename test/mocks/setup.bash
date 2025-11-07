@@ -9,9 +9,9 @@ setup_journey_test() {
   cd "$TEST_DIR"
 
   # Source all mock libraries
-  source "$PROJECT_ROOT/test/mocks/git_mocks.sh"
-  source "$PROJECT_ROOT/test/mocks/fzf_mocks.sh"
-  source "$PROJECT_ROOT/test/mocks/tmux_mocks.sh"
+  source "$PROJECT_ROOT/test/mocks/git_mocks.bash"
+  source "$PROJECT_ROOT/test/mocks/fzf_mocks.bash"
+  source "$PROJECT_ROOT/test/mocks/tmux_mocks.bash"
 
   # Set TMUX environment
   export TMUX="tmux-session"
