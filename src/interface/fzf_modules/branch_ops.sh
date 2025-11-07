@@ -12,10 +12,9 @@ select_branch_with_fzf() {
 }
 
 parse_branch_selection() {
-  # Parse fzf output into variables
-  # Returns: branch_query, branch_selection via readarray
-  readarray -t response
-
+  # Parse fzf output from response array into variables
+  # Expects: response array already populated via readarray
+  # Sets: branch_query, branch_selection
   branch_query=$(echo "${response[0]}" | sed 's/\n//')
   branch_selection=$(echo "${response[1]}" | sed 's/\n//')
 }

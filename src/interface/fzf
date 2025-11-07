@@ -11,10 +11,9 @@ run_fzf() {
 
   header="Enter: Create/Switch worktree | $modifier_key-$delete_worktree_key: Remove worktree"
 
-  # Get worktree selection
-  get_worktree_list "$ignore_list" | \
-    select_worktree_with_fzf "$header" "$delete_keybinding" | \
-    parse_worktree_selection
+  # Get worktree selection using process substitution
+  readarray -t response < <(get_worktree_list "$ignore_list" | select_worktree_with_fzf "$header" "$delete_keybinding")
+  parse_worktree_selection
 
   debug "fzf query: $wt_query"
   debug "fzf keypress: $wt_key"
@@ -45,7 +44,9 @@ run_fzf() {
   if [[ -n "$wt_query" ]]; then
     debug "$wt_query doesn't exist as a worktree, asking for a branch"
 
-    select_branch_with_fzf | parse_branch_selection
+    # Get branch selection using process substitution
+    readarray -t response < <(select_branch_with_fzf)
+    parse_branch_selection
 
     debug "Branch from fzf prompt: $branch_query, $branch_selection"
 

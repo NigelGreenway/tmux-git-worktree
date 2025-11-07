@@ -21,10 +21,9 @@ select_worktree_with_fzf() {
 }
 
 parse_worktree_selection() {
-  # Parse fzf output into variables
-  # Returns: wt_query, wt_key, wt_selection via readarray
-  readarray -t response
-
+  # Parse fzf output from response array into variables
+  # Expects: response array already populated via readarray
+  # Sets: wt_query, wt_key, wt_selection
   wt_query="${response[0]}"
   wt_key="${response[1]}"
   wt_selection="${response[2]}"
