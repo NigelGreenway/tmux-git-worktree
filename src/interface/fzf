@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 
+CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "$CURRENT_DIR/fzf_modules/worktree_ops.sh"
+source "$CURRENT_DIR/fzf_modules/branch_ops.sh"
+source "$CURRENT_DIR/fzf_modules/commit_ops.sh"
+source "$CURRENT_DIR/fzf_modules/deletion.sh"
+
 run_fzf() {
   debug "fzf installed"
 
   header="Enter: Create/Switch worktree | $modifier_key-$delete_worktree_key: Remove worktree"
 
-  readarray -t response < <(git worktree list |\
-    grep  -v -E "($ignore_list)" |\
-    awk '{print $1}' |\
-    xargs -n1 basename |\
-    fzf --print-query --expect="$delete_keybinding" --prompt="Select or create worktree: " --header="$header"
-  )
-
-  wt_query="${response[0]}"
-  wt_key="${response[1]}"
-  wt_selection="${response[2]}"
+  # Get worktree selection
+  get_worktree_list "$ignore_list" | \
+    select_worktree_with_fzf "$header" "$delete_keybinding" | \
+    parse_worktree_selection
 
   debug "fzf query: $wt_query"
   debug "fzf keypress: $wt_key"
@@ -23,25 +23,15 @@ run_fzf() {
   # Exit if user cancelled (Ctrl+C or Esc)
   [[ -z "$wt_query" && -z "$wt_key" && -z "$wt_selection" ]] && exit 0
 
+  # Handle deletion
   if [[ "$wt_key" == "$delete_keybinding" ]]; then
-    debug "Deleting the worktree: $wt_selection"
-
-    read -p "Delete worktree $wt_selection? [Y/n] " confirmation
-    if [[ "$confirmation" == "n" || "$confirmation" == "N" ]]; then
-      debug "skipped deletion"
-    else
-      debug "removing worktree: $wt_selection"
-      git worktree remove $wt_selection
-      debug "removed worktree: $wt_selection"
-      echo "Removed worktree: $wt_selection"
-      sleep "$time_to_live"
-    fi
-
+    handle_worktree_deletion "$wt_selection" "$time_to_live"
     exit 0
   fi
 
+  # Handle existing worktree selection
   if [[ -n "$wt_selection" ]]; then
-    existing_worktree=$(git worktree list | awk -v dir="$wt_selection" '$1 ~ "/"dir"$" {print; exit}')
+    existing_worktree=$(check_worktree_exists "$wt_selection")
     debug "Existing worktree found"
 
     if [[ -n "$existing_worktree" ]]; then
@@ -51,13 +41,11 @@ run_fzf() {
     fi
   fi
 
+  # Handle new worktree creation
   if [[ -n "$wt_query" ]]; then
     debug "$wt_query doesn't exist as a worktree, asking for a branch"
 
-    readarray response -t < <(git branch -a | sed 's/^[* ] //' | sed 's/remotes\///' | fzf --print-query --prompt="Select or type branch: ")
-
-    branch_query=$(echo "${response[0]}" | sed 's/\n//')
-    branch_selection=$(echo "${response[1]}" | sed 's/\n//')
+    select_branch_with_fzf | parse_branch_selection
 
     debug "Branch from fzf prompt: $branch_query, $branch_selection"
 
@@ -65,19 +53,9 @@ run_fzf() {
 
     branch=$branch_selection
 
-    if [[ ! -z "$branch_query" ]]; then
+    if [[ -n "$branch_query" ]]; then
       branch=$branch_query
-      commit=$(\
-        git branch -a |\
-        sed 's/^[* ] //' |\
-        sed 's/remotes\///' |\
-        fzf \
-          --print-query \
-          --header="Enter: Select branch | $show_commit_ref_binding: switch to commit refs" \
-          --bind="$show_commit_ref_binding:become(git --no-pager log --no-color --oneline --no-merges --decorate | fzf --print-query  --prompt='Select commit ref: ' | tail -1 | awk '{print $1}')" |\
-        awk '{print $1}' |\
-        tail -1
-       )
+      commit=$(select_commit_with_fzf "$show_commit_ref_binding")
       echo "Commit from fzf prompt: $commit"
     fi
 
