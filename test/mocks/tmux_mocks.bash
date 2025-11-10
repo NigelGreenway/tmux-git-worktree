@@ -60,6 +60,7 @@ mock_tmux_with_ignore_list() {
 mock_tmux_with_ignore_and_capture() {
   # Store ignore pattern in a global variable so the tmux function can access it
   MOCK_TMUX_IGNORE_PATTERN="$1"
+  export MOCK_TMUX_IGNORE_PATTERN
 
   tmux() {
     case "$1" in
