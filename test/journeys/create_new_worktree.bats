@@ -61,5 +61,5 @@ teardown() {
   run cat /tmp/git_worktree_add.txt
   assert_output --partial "my-worktree"
   assert_output --partial "BRANCH=existing-branch"
-  # refute_output --partial "NEW_BRANCH="  # Should not create new branch
+  refute_output --partial "NEW_BRANCH="  # Should not create new branch
 }

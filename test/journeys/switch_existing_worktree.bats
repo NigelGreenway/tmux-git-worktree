@@ -51,7 +51,7 @@ teardown() {
   # Verify the ignored worktree was filtered out
   [[ -f /tmp/fzf_input.txt ]] && {
     run cat /tmp/fzf_input.txt
-    # refute_output --partial ".bare"
+    refute_output --partial ".bare"
     assert_output --partial "feature-a"
   }
 

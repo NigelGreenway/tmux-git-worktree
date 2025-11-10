@@ -69,13 +69,13 @@ mock_git_capture_worktree_add() {
             shift
           done
 
-          # Save for verification
-          cat > /tmp/git_worktree_add.txt <<EOF
-PATH=$path
-BRANCH=$branch
-NEW_BRANCH=$new_branch
-COMMIT_REF=$commit_ref
-EOF
+          # Save for verification - only write non-empty values
+          {
+            echo "PATH=$path"
+            [[ -n "$branch" ]] && echo "BRANCH=$branch"
+            [[ -n "$new_branch" ]] && echo "NEW_BRANCH=$new_branch"
+            [[ -n "$commit_ref" ]] && echo "COMMIT_REF=$commit_ref"
+          } > /tmp/git_worktree_add.txt
           mkdir -p "$path"
           return 0
         elif [[ "$2" == "list" ]]; then
