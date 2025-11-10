@@ -32,11 +32,10 @@ cleanup_mocks() {
 }
 
 # Helper to create git repo
+# No-op: All git operations are mocked in tests
 init_git_repo() {
-  git init
-  git config user.email "test@test.com"
-  git config user.name "Test User"
-  git commit --allow-empty -m "Initial commit"
+  # Tests should use mocked git functions instead of real git commands
+  true
 }
 
 # Helper to create symlinks for sourced files

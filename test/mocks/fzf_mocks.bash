@@ -2,16 +2,18 @@
 
 # Mock fzf to select an existing worktree
 mock_fzf_select_existing() {
-  local selection="$1"
+  # Store selection in a global variable so the fzf function can access it
+  MOCK_FZF_SELECTION="$1"
+  export MOCK_FZF_SELECTION
 
   fzf() {
     # Consume and save input for debugging
     cat > /tmp/fzf_input.txt
 
     # Simulate user selecting an existing worktree
-    echo ""           # query (empty - user didn't type)
-    echo ""           # key (no special key pressed)
-    echo "$selection" # selection
+    echo ""                      # query (empty - user didn't type)
+    echo ""                      # key (no special key pressed)
+    echo "$MOCK_FZF_SELECTION"   # selection
   }
   export -f fzf
 
@@ -24,9 +26,11 @@ mock_fzf_select_existing() {
 
 # Mock fzf for new worktree creation journey
 mock_fzf_create_worktree() {
-  local wt_name="$1"
-  local branch_name="$2"
-  local commit_ref="${3:-}"
+  # Store parameters in global variables so the fzf function can access them
+  MOCK_FZF_WT_NAME="$1"
+  MOCK_FZF_BRANCH_NAME="$2"
+  MOCK_FZF_COMMIT_REF="${3:-}"
+  export MOCK_FZF_WT_NAME MOCK_FZF_BRANCH_NAME MOCK_FZF_COMMIT_REF
 
   fzf() {
     local count_file="/tmp/fzf_call_count"
@@ -42,18 +46,18 @@ mock_fzf_create_worktree() {
     case $call_count in
       1)
         # First call: Worktree selection - user types new name
-        echo "$wt_name"  # query
-        echo ""          # key
-        echo ""          # selection (empty - doesn't exist)
+        echo "$MOCK_FZF_WT_NAME"  # query
+        echo ""                   # key
+        echo ""                   # selection (empty - doesn't exist)
         ;;
       2)
         # Second call: Branch selection - user types new branch
-        echo "$branch_name"  # query
-        echo ""              # selection (empty - user typed)
+        echo "$MOCK_FZF_BRANCH_NAME"  # query
+        echo ""                       # selection (empty - user typed)
         ;;
       3)
         # Third call: Commit selection (if branch is new)
-        echo "$commit_ref"
+        echo "$MOCK_FZF_COMMIT_REF"
         ;;
     esac
   }
@@ -68,15 +72,17 @@ mock_fzf_create_worktree() {
 
 # Mock fzf for deletion flow
 mock_fzf_delete_worktree() {
-  local wt_to_delete="$1"
-  local delete_key="$2"
+  # Store parameters in global variables so the fzf function can access them
+  MOCK_FZF_WT_TO_DELETE="$1"
+  MOCK_FZF_DELETE_KEY="$2"
+  export MOCK_FZF_WT_TO_DELETE MOCK_FZF_DELETE_KEY
 
   fzf() {
     cat > /dev/null  # Consume input
 
-    echo ""                  # query (empty)
-    echo "$delete_key"       # key pressed
-    echo "$wt_to_delete"     # selection
+    echo ""                        # query (empty)
+    echo "$MOCK_FZF_DELETE_KEY"    # key pressed
+    echo "$MOCK_FZF_WT_TO_DELETE"  # selection
   }
   export -f fzf
 
@@ -89,8 +95,10 @@ mock_fzf_delete_worktree() {
 
 # Mock fzf for user selecting existing branch
 mock_fzf_select_existing_branch() {
-  local wt_name="$1"
-  local branch_name="$2"
+  # Store parameters in global variables so the fzf function can access them
+  MOCK_FZF_WT_NAME="$1"
+  MOCK_FZF_BRANCH_NAME="$2"
+  export MOCK_FZF_WT_NAME MOCK_FZF_BRANCH_NAME
 
   fzf() {
     local count_file="/tmp/fzf_call_count"
@@ -105,14 +113,14 @@ mock_fzf_select_existing_branch() {
     case $call_count in
       1)
         # First call: Worktree selection - user types new name
-        echo "$wt_name"  # query
-        echo ""          # key
-        echo ""          # selection
+        echo "$MOCK_FZF_WT_NAME"  # query
+        echo ""                   # key
+        echo ""                   # selection
         ;;
       2)
         # Second call: Branch selection - user selects existing
-        echo ""              # query (empty - user selected)
-        echo "$branch_name"  # selection
+        echo ""                       # query (empty - user selected)
+        echo "$MOCK_FZF_BRANCH_NAME"  # selection
         ;;
     esac
   }

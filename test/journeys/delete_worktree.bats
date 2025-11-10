@@ -8,10 +8,8 @@ setup() {
   setup_journey_test
   init_git_repo
 
-  # Create existing worktrees
+  # Create directory structure (actual worktrees are mocked in tests)
   mkdir -p ../feature-to-delete ../other-feature
-  git worktree add ../feature-to-delete -b delete-branch 2>/dev/null || true
-  git worktree add ../other-feature -b other-branch 2>/dev/null || true
 }
 
 teardown() {

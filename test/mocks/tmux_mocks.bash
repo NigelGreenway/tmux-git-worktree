@@ -38,13 +38,14 @@ EOF
 
 # Mock tmux with custom ignore list
 mock_tmux_with_ignore_list() {
-  local ignore_pattern="$1"
+  # Store ignore pattern in a global variable so the tmux function can access it
+  MOCK_TMUX_IGNORE_PATTERN="$1"
 
   tmux() {
     case "$1" in
       show)
         if [[ "$3" == "@git-worktree-ignore-worktrees" ]]; then
-          echo "$ignore_pattern"
+          echo "$MOCK_TMUX_IGNORE_PATTERN"
         else
           echo ""
         fi
@@ -57,13 +58,14 @@ mock_tmux_with_ignore_list() {
 
 # Mock tmux with custom ignore list AND capture window
 mock_tmux_with_ignore_and_capture() {
-  local ignore_pattern="$1"
+  # Store ignore pattern in a global variable so the tmux function can access it
+  MOCK_TMUX_IGNORE_PATTERN="$1"
 
   tmux() {
     case "$1" in
       show)
         if [[ "$3" == "@git-worktree-ignore-worktrees" ]]; then
-          echo "$ignore_pattern"
+          echo "$MOCK_TMUX_IGNORE_PATTERN"
         else
           echo ""
         fi

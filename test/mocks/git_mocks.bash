@@ -2,7 +2,9 @@
 
 # Scenario: Repository with existing worktrees
 mock_git_with_worktrees() {
-  local worktrees=("$@")
+  # Store worktrees as a delimited string (arrays cannot be exported)
+  MOCK_WORKTREES_STR="$*"
+  export MOCK_WORKTREES_STR
 
   git() {
     case "$1 $2" in
@@ -20,13 +22,13 @@ mock_git_with_worktrees() {
         ;;
       "worktree list")
         echo "$TEST_DIR main abc123"
-        for wt in "${worktrees[@]}"; do
+        for wt in $MOCK_WORKTREES_STR; do
           echo "$TEST_DIR/../$wt ${wt}-branch def456"
         done
         ;;
       "branch -a")
         echo "  main"
-        for wt in "${worktrees[@]}"; do
+        for wt in $MOCK_WORKTREES_STR; do
           echo "  ${wt}-branch"
         done
         ;;
@@ -91,8 +93,15 @@ EOF
             return 0
             ;;
           --quiet|--verify)
-            # Check if branch exists
-            if [[ "$3" == "main" ]]; then
+            # Check if branch exists - accept main, feature-branch, and existing-branch
+            # Handle both "git rev-parse --verify branch" and "git rev-parse --quiet --verify branch"
+            local branch_name=""
+            if [[ "$3" == "--verify" || "$3" == "--quiet" ]]; then
+              branch_name="$4"
+            else
+              branch_name="$3"
+            fi
+            if [[ "$branch_name" == "main" || "$branch_name" == "feature-branch" || "$branch_name" == "existing-branch" ]]; then
               return 0
             else
               return 1
@@ -103,9 +112,18 @@ EOF
       branch)
         echo "  main"
         echo "  feature-branch"
+        echo "  existing-branch"
         echo "  remotes/origin/main"
         ;;
+      checkout)
+        # Handle git checkout (for existing branches) or git checkout -b (for new branches)
+        return 0
+        ;;
       config|commit)
+        return 0
+        ;;
+      *)
+        # Default case: return success for any unhandled git commands
         return 0
         ;;
     esac

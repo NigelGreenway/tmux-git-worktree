@@ -3,10 +3,11 @@
 get_worktree_list() {
   local ignore_pattern="${1:-}"
 
-  git worktree list | \
-    grep -v -E "($ignore_pattern)" | \
-    awk '{print $1}' | \
-    xargs -n1 basename
+  if [[ -z "$ignore_pattern" ]]; then
+    git worktree list | awk '{print $1}' | xargs -n1 basename
+  else
+    git worktree list | awk '{print $1}' | grep -v -F "$ignore_pattern" | xargs -n1 basename
+  fi
 }
 
 select_worktree_with_fzf() {

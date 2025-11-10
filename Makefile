@@ -1,4 +1,4 @@
-.PHONY: build test test-utils test-journeys shell clean
+.PHONY: build test test-utils test-journeys test-modules shell clean
 
 # Docker configuration
 DOCKER_IMAGE_NAME = tmux-git-worktree-test
@@ -11,6 +11,7 @@ help:
 	@echo "  make build         - Build Docker test image"
 	@echo "  make test          - Run all tests in Docker"
 	@echo "  make test-utils    - Run utils.sh tests in Docker"
+	@echo "  make test-modules  - Run fzf_modules tests in Docker"
 	@echo "  make test-journeys - Run journey tests in Docker"
 	@echo "  make shell         - Run shell in Docker"
 	@echo "  make clean         - Remove Docker test image"
@@ -23,9 +24,9 @@ build:
 test: build
 	@echo "Running all tests in Docker..."
 ifdef VERBOSE
-	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/*.bats test/journeys/*.bats --tap
+	@docker run --volume ${PWD}/output.log:/tmp/test_output.log --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/utils.bats test/fzf_modules.bats test/journeys/*.bats --tap
 else
-	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/*.bats test/journeys/*.bats
+	@docker run --volume ${PWD}/output.log:/tmp/test_output.log --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/utils.bats test/fzf_modules.bats test/journeys/*.bats
 endif
 
 test-utils: build
@@ -34,6 +35,14 @@ ifdef VERBOSE
 	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/utils.bats --tap
 else
 	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/utils.bats
+endif
+
+test-modules: build
+	@echo "Running fzf_modules tests in Docker..."
+ifdef VERBOSE
+	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/fzf_modules.bats --tap
+else
+	@docker run --rm $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) bats test/fzf_modules.bats
 endif
 
 test-journeys: build
