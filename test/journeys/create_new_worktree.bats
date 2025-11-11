@@ -63,3 +63,19 @@ teardown() {
   assert_output --partial "BRANCH=existing-branch"
   refute_output --partial "NEW_BRANCH="  # Should not create new branch
 }
+
+@test "user creates a new worktree from existing branch which is associated to a worktree" {
+  mock_git_capture_worktree_add
+  mock_fzf_create_worktree "my-new-worktree" "branch-with-worktree"
+  mock_tmux_capture_window
+  setup_source_files
+
+  run "$MAIN_SCRIPT"
+
+  assert_success
+  [[ -f /tmp/git_worktree_add.txt ]] || skip "git worktree add was not called"
+
+  run cat /tmp/git_worktree_add.txt
+  assert_output --partial "my-new-worktree"
+  assert_output --partial "NEW_BRANCH=branch-with-worktree"
+}

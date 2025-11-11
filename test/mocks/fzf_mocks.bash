@@ -32,11 +32,17 @@ mock_fzf_create_worktree() {
   MOCK_FZF_COMMIT_REF="${3:-}"
   export MOCK_FZF_WT_NAME MOCK_FZF_BRANCH_NAME MOCK_FZF_COMMIT_REF
 
+  # Reset the counter for this test
+  rm -f /tmp/fzf_call_count
+
   fzf() {
     local count_file="/tmp/fzf_call_count"
-    [[ ! -f "$count_file" ]] && echo "0" > "$count_file"
+    local call_count=0
 
-    local call_count=$(cat "$count_file")
+    if [[ -f "$count_file" ]]; then
+      call_count=$(cat "$count_file")
+    fi
+
     call_count=$((call_count + 1))
     echo "$call_count" > "$count_file"
 
@@ -99,6 +105,9 @@ mock_fzf_select_existing_branch() {
   MOCK_FZF_WT_NAME="$1"
   MOCK_FZF_BRANCH_NAME="$2"
   export MOCK_FZF_WT_NAME MOCK_FZF_BRANCH_NAME
+
+  # Reset the counter for this test
+  rm -f /tmp/fzf_call_count
 
   fzf() {
     local count_file="/tmp/fzf_call_count"

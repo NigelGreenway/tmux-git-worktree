@@ -111,6 +111,7 @@ mock_git_capture_worktree_add() {
         ;;
       branch)
         echo "  main"
+        echo "+ branch-with-worktree"
         echo "  feature-branch"
         echo "  existing-branch"
         echo "  remotes/origin/main"
