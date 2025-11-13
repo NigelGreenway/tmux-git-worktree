@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+
+CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "$CURRENT_DIR/fzf_modules/worktree_ops.sh"
+source "$CURRENT_DIR/fzf_modules/branch_ops.sh"
+source "$CURRENT_DIR/fzf_modules/commit_ops.sh"
+source "$CURRENT_DIR/fzf_modules/deletion.sh"
+
+run_fzf() {
+  debug "fzf installed"
+
+  header="Enter: Create/Switch worktree | $modifier_key-$delete_worktree_key: Remove worktree"
+
+  # Get worktree selection using process substitution
+  readarray -t response < <(get_worktree_list "$ignore_list" | select_worktree_with_fzf "$header" "$delete_keybinding")
+  parse_worktree_selection
+
+  debug "fzf query: $wt_query"
+  debug "fzf keypress: $wt_key"
+  debug "fzf directory: $wt_selection"
+
+  # Exit if user cancelled (Ctrl+C or Esc)
+  [[ -z "$wt_query" && -z "$wt_key" && -z "$wt_selection" ]] && exit 0
+
+  # Handle deletion
+  if [[ "$wt_key" == "$delete_keybinding" ]]; then
+    handle_worktree_deletion "$wt_selection" "$time_to_live"
+    exit 0
+  fi
+
+  # Handle existing worktree selection
+  if [[ -n "$wt_selection" ]]; then
+    existing_worktree=$(check_worktree_exists "$wt_selection")
+    debug "Existing worktree found"
+
+    if [[ -n "$existing_worktree" ]]; then
+      debug "existing_worktree: $existing_worktree"
+      directory=$(echo "$existing_worktree" | awk '{ print $1 }' | xargs -n1 basename)
+      debug "Worktree after mutation: $directory"
+    fi
+  fi
+
+  # Handle new worktree creation
+  if [[ -n "$wt_query" ]]; then
+    debug "$wt_query doesn't exist as a worktree, asking for a branch"
+
+    # Get branch selection using process substitution
+    readarray -t response < <(select_branch_with_fzf)
+    parse_branch_selection
+
+    debug "Branch from fzf prompt: $branch_query, $branch_selection"
+
+    check_condition_and_error_on_fail '[[ -z "$branch_query" && -z "$branch_selection" ]]' 'Branch name cannot be empty'
+
+    branch=$branch_selection
+
+    if [[ -n "$branch_query" ]]; then
+      branch=$branch_query
+      commit=$(select_commit_with_fzf "$show_commit_ref_binding")
+      echo "Commit from fzf prompt: $commit"
+    fi
+
+    directory="$wt_query"
+  fi
+}

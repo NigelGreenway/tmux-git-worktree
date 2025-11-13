@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+run_bash() {
+  debug "fzf not installed"
+  read -p "Enter worktree name: " directory
+  directory=${directory}
+
+  read -p "Enter branch name: " branch
+  branch=${branch}
+}
