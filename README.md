@@ -15,7 +15,7 @@ The problem was down to being lazy: I didn't want to have to create a new tmux w
 Add plugin to the list of [TPM](https://github.com/tmux-plugins/tpm) plugins in your `.tmux.conf`:
 
 ```tmux
-set -g @plugin 'NigelGreenway/tmux-git-workflow'
+set -g @plugin 'NigelGreenway/tmux-git-worktree'
 ```
 
 Hit <prefix> + I to fetch the plugin and source it.
