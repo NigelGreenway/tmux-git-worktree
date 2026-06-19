@@ -9,10 +9,10 @@ source "$CURRENT_DIR/fzf_modules/deletion.sh"
 run_fzf() {
   debug "fzf installed"
 
-  header="Enter: Create/Switch worktree | $modifier_key-$delete_worktree_key: Remove worktree"
+  header="Enter: New window | ${switch_pane_key}: Switch pane | $modifier_key-$delete_worktree_key: Remove worktree"
 
   # Get worktree selection using process substitution
-  readarray -t response < <(get_worktree_list "$ignore_list" | select_worktree_with_fzf "$header" "$delete_keybinding")
+  readarray -t response < <(get_worktree_list "$ignore_list" | select_worktree_with_fzf "$header" "$delete_keybinding" "$switch_pane_key")
   parse_worktree_selection
 
   debug "fzf query: $wt_query"
@@ -26,6 +26,13 @@ run_fzf() {
   if [[ "$wt_key" == "$delete_keybinding" ]]; then
     handle_worktree_deletion "$wt_selection" "$time_to_live"
     exit 0
+  fi
+
+  # Set open action based on key used
+  if [[ "$wt_key" == "$switch_pane_key" ]]; then
+    open_action="switch-pane"
+  else
+    open_action="new-window"
   fi
 
   # Handle existing worktree selection

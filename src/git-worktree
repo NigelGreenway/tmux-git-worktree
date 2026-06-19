@@ -13,12 +13,14 @@ keybinding=$(get_option_value "@git-worktree-keybinding" "C-g")
 modifier_key=$(get_option_value "@git-worktree-modifer" "ctrl")
 delete_worktree_key=$(get_option_value "@git-worktree-delete-key" "d")
 switch_to_commit_refs_key=$(get_option_value "@git-worktree-delete-key" "r")
+switch_pane_key=$(get_option_value "@git-worktree-switch-pane-key" "alt-enter")
 time_to_live=$(get_option_value "@git-worktree-ttl" "2")
 
 debug "ignore_list: $ignore_list"
 debug "keybinding: $keybinding"
 debug "modifer_key: $modifier_key"
 debug "delete_worktree_key: $delete_worktree_key"
+debug "switch_pane_key: $switch_pane_key"
 debug "time_to_live: $time_to_live"
 ### end
 
@@ -51,12 +53,22 @@ fi
 
 debug "Worktree after bare repo check: $directory"
 
+open_in_tmux() {
+  local abs_dir="$1"
+  local win_name="$2"
+  if [[ "$open_action" == "switch-pane" ]]; then
+    tmux send-keys "cd \"$abs_dir\" && clear" Enter
+  else
+    check_condition_and_error_on_fail '! tmux new-window -c "$abs_dir" -n "$win_name"' 'Failed to create tmux window'
+  fi
+}
+
 if [[ -d "$directory" ]]; then
   debug "Worktree '$directory' exists"
   abs_directory=$(cd "$directory" && pwd)
   debug "abs_directory: '$abs_directory'"
   window_name=$(clean_window_name $directory)
-  check_condition_and_error_on_fail '! tmux new-window -c "$abs_directory" -n "$window_name"' 'Failed to create tmux window'
+  open_in_tmux "$abs_directory" "$window_name"
   exit 0
 fi
 
@@ -73,4 +85,4 @@ fi
 abs_directory=$(cd "$directory" && pwd)
 window_name=$(clean_window_name $directory)
 debug "abs_directory: '$abs_directory'"
-check_condition_and_error_on_fail '! tmux new-window -c "$abs_directory" -n "$window_name"' 'Failed to create tmux window'
+open_in_tmux "$abs_directory" "$window_name"

@@ -56,6 +56,21 @@ mock_tmux_with_ignore_list() {
   export -f tmux
 }
 
+# Mock tmux and capture send-keys calls (switch-pane path)
+mock_tmux_capture_send_keys() {
+  tmux() {
+    case "$1" in
+      show) echo "" ;;
+      send-keys)
+        echo "KEYS=$2" > /tmp/tmux_send_keys.txt
+        return 0
+        ;;
+      new-window) return 0 ;;
+    esac
+  }
+  export -f tmux
+}
+
 # Mock tmux with custom ignore list AND capture window
 mock_tmux_with_ignore_and_capture() {
   # Store ignore pattern in a global variable so the tmux function can access it

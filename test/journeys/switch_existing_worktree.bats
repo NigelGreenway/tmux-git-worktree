@@ -62,6 +62,25 @@ teardown() {
   }
 }
 
+@test "user selects existing worktree with alt-enter and cd is sent to current pane" {
+  mock_git_with_worktrees "feature-a" "feature-b"
+  mock_fzf_select_existing_switch_pane "feature-a"
+  mock_tmux_capture_send_keys
+  setup_source_files
+
+  run "$MAIN_SCRIPT"
+
+  assert_success
+
+  # Verify send-keys was called with the worktree path
+  [[ -f /tmp/tmux_send_keys.txt ]] || skip "tmux send-keys not called"
+  run cat /tmp/tmux_send_keys.txt
+  assert_output --partial "feature-a"
+
+  # Verify new-window was NOT called
+  [[ ! -f /tmp/tmux_window.txt ]]
+}
+
 @test "user cancels worktree selection - script exits cleanly" {
   # Arrange: fzf returns empty (user pressed Ctrl+C)
   mock_git_with_worktrees "feature-a"

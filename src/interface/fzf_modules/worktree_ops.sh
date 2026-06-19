@@ -13,10 +13,11 @@ get_worktree_list() {
 select_worktree_with_fzf() {
   local header="$1"
   local delete_binding="$2"
+  local switch_pane_binding="$3"
 
   fzf \
     --print-query \
-    --expect="$delete_binding" \
+    --expect="$delete_binding,$switch_pane_binding" \
     --prompt="Select or create worktree: " \
     --header="$header"
 }

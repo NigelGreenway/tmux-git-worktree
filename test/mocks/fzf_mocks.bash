@@ -99,6 +99,27 @@ mock_fzf_delete_worktree() {
   export -f command
 }
 
+# Mock fzf to select an existing worktree using the switch-pane key (alt-enter)
+mock_fzf_select_existing_switch_pane() {
+  MOCK_FZF_SELECTION="$1"
+  export MOCK_FZF_SELECTION
+
+  fzf() {
+    cat > /tmp/fzf_input.txt
+
+    echo ""                     # query (empty - user didn't type)
+    echo "alt-enter"            # key - switch-pane binding
+    echo "$MOCK_FZF_SELECTION"  # selection
+  }
+  export -f fzf
+
+  command() {
+    [[ "$1 $2" == "-v fzf" ]] && return 0
+    return 1
+  }
+  export -f command
+}
+
 # Mock fzf for user selecting existing branch
 mock_fzf_select_existing_branch() {
   # Store parameters in global variables so the fzf function can access them
