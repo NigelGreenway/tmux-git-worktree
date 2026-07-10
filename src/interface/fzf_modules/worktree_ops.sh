@@ -14,10 +14,12 @@ select_worktree_with_fzf() {
   local header="$1"
   local delete_binding="$2"
   local switch_pane_binding="$3"
+  local new_window_binding="$4"
+  local split_pane_binding="$5"
 
   fzf \
     --print-query \
-    --expect="$delete_binding,$switch_pane_binding" \
+    --expect="$delete_binding,$switch_pane_binding,$new_window_binding,$split_pane_binding" \
     --prompt="Select or create worktree: " \
     --header="$header"
 }

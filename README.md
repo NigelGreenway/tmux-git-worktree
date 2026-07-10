@@ -59,6 +59,28 @@ set -g git-worktree-delete-key "r"      # Default is r
 set -g @git-worktree-ttl "5"            # Default is 2
 ```
 
+### How a worktree is opened
+
+By default, pressing `Enter` opens the selected worktree in a **new window**.
+You can override this per keystroke, or change the default:
+
+```tmux
+# What a plain Enter does: new-window (default), split-pane or switch-pane
+set -g @git-worktree-default-action "split-pane"
+
+# Keys that force a specific action (override the default)
+set -g @git-worktree-new-window-key  "ctrl-w"   # open in a new window
+set -g @git-worktree-split-pane-key  "ctrl-s"   # split the current window
+set -g @git-worktree-switch-pane-key "alt-enter" # cd the current pane
+
+# Split orientation used by split-pane: h (left/right) or v (top/bottom)
+set -g @git-worktree-split-direction "h"        # Default is h
+
+# Optionally run a command in the opened window/pane (empty = just a shell).
+# Handy for dropping straight into an editor or agent per worktree.
+set -g @git-worktree-run-command "nvim"         # Default is empty
+```
+
 ## Development
 
 For safer, isolated development, use Docker to run tests in a containerized Ubuntu environment. This prevents any potential side effects on your host system.

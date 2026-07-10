@@ -9,10 +9,10 @@ source "$CURRENT_DIR/fzf_modules/deletion.sh"
 run_fzf() {
   debug "fzf installed"
 
-  header="Enter: New window | ${switch_pane_key}: Switch pane | $modifier_key-$delete_worktree_key: Remove worktree"
+  header="Enter: ${default_action} | ${new_window_key}: New window | ${split_pane_key}: Split pane | ${switch_pane_key}: Switch pane | $modifier_key-$delete_worktree_key: Remove worktree"
 
   # Get worktree selection using process substitution
-  readarray -t response < <(get_worktree_list "$ignore_list" | select_worktree_with_fzf "$header" "$delete_keybinding" "$switch_pane_key")
+  readarray -t response < <(get_worktree_list "$ignore_list" | select_worktree_with_fzf "$header" "$delete_keybinding" "$switch_pane_key" "$new_window_key" "$split_pane_key")
   parse_worktree_selection
 
   debug "fzf query: $wt_query"
@@ -28,12 +28,14 @@ run_fzf() {
     exit 0
   fi
 
-  # Set open action based on key used
-  if [[ "$wt_key" == "$switch_pane_key" ]]; then
-    open_action="switch-pane"
-  else
-    open_action="new-window"
-  fi
+  # Pick the open action. Each key forces a specific action; a plain Enter
+  # falls back to @git-worktree-default-action (default: new-window).
+  case "$wt_key" in
+    "$switch_pane_key") open_action="switch-pane" ;;
+    "$new_window_key")  open_action="new-window" ;;
+    "$split_pane_key")  open_action="split-pane" ;;
+    *)                  open_action="$default_action" ;;
+  esac
 
   # Handle existing worktree selection
   if [[ -n "$wt_selection" ]]; then
@@ -42,7 +44,9 @@ run_fzf() {
 
     if [[ -n "$existing_worktree" ]]; then
       debug "existing_worktree: $existing_worktree"
-      directory=$(echo "$existing_worktree" | awk '{ print $1 }' | xargs -n1 basename)
+      # Keep the full path: worktrees are not always siblings of the repo
+      # (e.g. nested ones under .claude/worktrees/<branch>)
+      directory=$(echo "$existing_worktree" | awk '{ print $1 }')
       debug "Worktree after mutation: $directory"
     fi
   fi
